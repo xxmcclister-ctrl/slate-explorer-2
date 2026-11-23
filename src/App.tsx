@@ -34,6 +34,7 @@ import {
   type SidebarContextTarget,
 } from './components/Sidebar';
 import { TabBar } from './components/TabBar';
+import { ThemeBackdrop } from './components/ThemeBackdrop';
 import { TitleToolbar } from './components/TitleToolbar';
 import {
   ArchiveCompressDialog,
@@ -44,6 +45,13 @@ import {
   StorageAnalyzerModal,
 } from './components/ToolsModals';
 import { getFsBridge } from './services/fsBridge';
+import {
+  DEFAULT_THEME_SPEED,
+  clampThemeSpeed,
+  getThemeDefinition,
+  normalizeThemeId,
+  type ThemeId,
+} from './utils/themeRegistry';
 import {
   BUILTIN_EXTENSIONS,
   DEFAULT_DETAILS_COLUMNS,
@@ -76,6 +84,7 @@ const PINNED_STORAGE_KEY = 'slate-explorer:pinned-favorites:v1';
 const QUICK_ORDER_STORAGE_KEY = 'slate-explorer:quick-access-order:v1';
 const FOLDER_VIEW_PREFS_STORAGE_KEY = 'slate-explorer:folder-view-prefs:v1';
 const THEME_STORAGE_KEY = 'slate-explorer:theme:v1';
+const THEME_SPEED_STORAGE_KEY = 'slate-explorer:theme-speed:v1';
 const COLUMNS_STORAGE_KEY = 'slate-explorer:details-columns:v1';
 const TOOLBAR_STORAGE_KEY = 'slate-explorer:toolbar-actions:v1';
 const EXTENSIONS_STORAGE_KEY = 'slate-explorer:extensions:v1';
@@ -97,24 +106,53 @@ function applyQuickAccessOrder(
 export default function App() {
   const bridge = useMemo(() => getFsBridge(), []);
 
-  // Theme (Light & Dark Windows 11 Mica)
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+  // Theme (Static & Animated Windows 11 Mica presets + Animation Speed)
+  const [theme, setTheme] = useState<ThemeId>(() => {
     try {
-      const saved = localStorage.getItem(THEME_STORAGE_KEY);
-      return saved === 'light' ? 'light' : 'dark';
+      return normalizeThemeId(localStorage.getItem(THEME_STORAGE_KEY));
     } catch {
       return 'dark';
     }
   });
+  const [themeSpeed, setThemeSpeed] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem(THEME_SPEED_STORAGE_KEY);
+      return raw ? clampThemeSpeed(Number(raw)) : DEFAULT_THEME_SPEED;
+    } catch {
+      return DEFAULT_THEME_SPEED;
+    }
+  });
+
+  const activeThemeDef = useMemo(() => getThemeDefinition(theme), [theme]);
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
+    const root = document.documentElement;
+    root.classList.toggle('dark', activeThemeDef.colorScheme === 'dark');
+    root.dataset.theme = activeThemeDef.id;
+    for (const [prop, val] of Object.entries(activeThemeDef.vars)) {
+      root.style.setProperty(prop, val);
+    }
+    if (activeThemeDef.backdropColors) {
+      root.style.setProperty('--theme-c1', activeThemeDef.backdropColors[0]);
+      root.style.setProperty('--theme-c2', activeThemeDef.backdropColors[1]);
+      root.style.setProperty('--theme-c3', activeThemeDef.backdropColors[2]);
+    }
     try {
-      localStorage.setItem(THEME_STORAGE_KEY, theme);
+      localStorage.setItem(THEME_STORAGE_KEY, activeThemeDef.id);
     } catch {
       // ignore storage quota
     }
-  }, [theme]);
+  }, [activeThemeDef]);
+
+  useEffect(() => {
+    const safeSpeed = clampThemeSpeed(themeSpeed);
+    document.documentElement.style.setProperty('--theme-anim-speed', String(safeSpeed));
+    try {
+      localStorage.setItem(THEME_SPEED_STORAGE_KEY, String(safeSpeed));
+    } catch {
+      // ignore storage quota
+    }
+  }, [themeSpeed]);
 
   // System & Sidebar Metadata
   const [overview, setOverview] = useState<SystemOverview | null>(null);
@@ -1768,12 +1806,13 @@ export default function App() {
       }`}
     >
       <div
-        className={`bg-[var(--win-chrome)] text-[var(--win-text)] flex flex-col overflow-hidden rounded-2xl border border-[var(--win-border-strong)] shadow-2xl transition-all duration-150 ${
+        className={`relative bg-[var(--win-chrome)] text-[var(--win-text)] flex flex-col overflow-hidden rounded-2xl border border-[var(--win-border-strong)] shadow-2xl transition-all duration-150 ${
           bridge.isElectron || previewMaximized
             ? 'h-full w-full'
             : 'w-full max-w-[1260px] h-full max-h-[86vh]'
         }`}
       >
+        <ThemeBackdrop theme={activeThemeDef} />
         {/* Row 1 & 2: Navigation, Address Bar, Search + Window Controls & Command Bar */}
         <TitleToolbar
           isWindowMaximized={previewMaximized}
@@ -1815,6 +1854,7 @@ export default function App() {
           inspectorOpen={inspectorOpen}
           splitPane={splitPane}
           theme={theme}
+          themeSpeed={themeSpeed}
           activityOpen={activityOpen}
           runningOpsCount={runningOpsCount}
           isVaultLocked={isSecureFolderPath(currentPath) && !secureStatus?.unlocked}
@@ -1824,7 +1864,8 @@ export default function App() {
           onTogglePreview={() => setPreviewOpen((o) => !o)}
           onToggleInspector={() => setInspectorOpen((o) => !o)}
           onToggleSplitPane={handleToggleSplitPane}
-          onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+          onSelectTheme={setTheme}
+          onThemeSpeedChange={(nextSpeed) => setThemeSpeed(clampThemeSpeed(nextSpeed))}
           onToggleActivity={() => setActivityOpen((o) => !o)}
           onOpenCompare={() => setCompareOpen(true)}
           onOpenStorageAnalyzer={() => setStorageAnalyzerOpen(true)}
@@ -1881,7 +1922,7 @@ export default function App() {
         />
 
         {/* Workspace Body */}
-        <div className="flex-1 min-h-0 flex overflow-hidden pt-1">
+        <div className="relative z-10 flex-1 min-h-0 flex overflow-hidden pt-1">
           {sidebarOpen && (
             <Sidebar
               currentPath={currentPath}
@@ -2059,7 +2100,7 @@ export default function App() {
         </div>
 
         {/* Bottom Status Bar */}
-        <footer className="h-8 px-4 bg-[var(--win-chrome)] border-t border-[var(--win-border)] flex items-center justify-between text-[11px] text-[var(--win-text-muted)] shrink-0 select-none">
+        <footer className="relative z-10 h-8 px-4 bg-[var(--win-chrome)] border-t border-[var(--win-border)] flex items-center justify-between text-[11px] text-[var(--win-text-muted)] shrink-0 select-none">
           <div className="flex items-center gap-3 tabular-nums">
             <span>
               {activeDisplayedEntries.length.toLocaleString()}{' '}

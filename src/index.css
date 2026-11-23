@@ -113,6 +113,161 @@
   -webkit-app-region: no-drag;
 }
 
+@keyframes theme-drift-a {
+  0%,
+  100% {
+    transform: translate3d(-6%, -4%, 0) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(10%, 8%, 0) scale(1.14) rotate(8deg);
+  }
+}
+
+@keyframes theme-drift-b {
+  0%,
+  100% {
+    transform: translate3d(8%, 6%, 0) scale(1.06) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-10%, -7%, 0) scale(0.94) rotate(-10deg);
+  }
+}
+
+@keyframes theme-drift-c {
+  0%,
+  100% {
+    transform: translate3d(0%, 4%, 0) scale(0.96);
+    opacity: 0.48;
+  }
+  50% {
+    transform: translate3d(-6%, -8%, 0) scale(1.12);
+    opacity: 0.78;
+  }
+}
+
+@keyframes theme-ocean-swell {
+  0%,
+  100% {
+    transform: translate3d(-8%, 3%, 0) scaleX(1.08) scaleY(0.96);
+  }
+  50% {
+    transform: translate3d(8%, -4%, 0) scaleX(0.96) scaleY(1.1);
+  }
+}
+
+@keyframes theme-ember-rise {
+  0% {
+    transform: translate3d(-4%, 14%, 0) scale(0.92);
+    opacity: 0.42;
+  }
+  50% {
+    transform: translate3d(5%, -4%, 0) scale(1.12);
+    opacity: 0.78;
+  }
+  100% {
+    transform: translate3d(-4%, 14%, 0) scale(0.92);
+    opacity: 0.42;
+  }
+}
+
+@keyframes theme-radar-scan {
+  0% {
+    transform: translate3d(0, -110%, 0);
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate3d(0, 120%, 0);
+    opacity: 0.25;
+  }
+}
+
+@keyframes theme-synth-sweep {
+  0%,
+  100% {
+    transform: translate3d(-10%, 0%, 0) skewX(-12deg) scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate3d(12%, -5%, 0) skewX(-6deg) scale(1.12);
+    opacity: 0.85;
+  }
+}
+
+.theme-anim-drift-a {
+  animation: theme-drift-a calc(16s / var(--theme-anim-speed, 1)) ease-in-out infinite;
+  will-change: transform;
+}
+
+.theme-anim-drift-b {
+  animation: theme-drift-b calc(20s / var(--theme-anim-speed, 1)) ease-in-out infinite;
+  will-change: transform;
+}
+
+.theme-anim-drift-c {
+  animation: theme-drift-c calc(13s / var(--theme-anim-speed, 1)) ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.theme-anim-ocean {
+  animation: theme-ocean-swell calc(14s / var(--theme-anim-speed, 1)) ease-in-out infinite;
+  will-change: transform;
+}
+
+.theme-anim-ember {
+  animation: theme-ember-rise calc(12s / var(--theme-anim-speed, 1)) ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.theme-anim-scan {
+  animation: theme-radar-scan calc(7.5s / var(--theme-anim-speed, 1)) linear infinite;
+  will-change: transform, opacity;
+}
+
+.theme-anim-synth {
+  animation: theme-synth-sweep calc(15s / var(--theme-anim-speed, 1)) ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.theme-orb-1 {
+  background: radial-gradient(circle at center, var(--theme-c1, #10b981) 0%, transparent 70%);
+}
+
+.theme-orb-2 {
+  background: radial-gradient(circle at center, var(--theme-c2, #06b6d4) 0%, transparent 70%);
+}
+
+.theme-orb-3 {
+  background: radial-gradient(circle at center, var(--theme-c3, #6366f1) 0%, transparent 70%);
+}
+
+.theme-matrix-grid {
+  background-image:
+    linear-gradient(to right, rgba(74, 222, 128, 0.09) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(74, 222, 128, 0.09) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+
+.theme-matrix-beam {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(74, 222, 128, 0.05) 35%,
+    rgba(74, 222, 128, 0.24) 50%,
+    rgba(74, 222, 128, 0.05) 65%,
+    transparent 100%
+  );
+}
+
+.theme-synth-grid {
+  background-image:
+    linear-gradient(to right, rgba(232, 121, 249, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(6, 182, 212, 0.08) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

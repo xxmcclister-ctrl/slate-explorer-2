@@ -19,11 +19,12 @@ import {
   Folder,
   FolderPlus,
   FolderSync,
+  Gauge,
   HardDrive,
   Info,
   LayoutGrid,
   ListChecks,
-  Moon,
+  Palette,
   PanelLeft,
   Pencil,
   Puzzle,
@@ -34,7 +35,7 @@ import {
   SearchCheck,
   Settings,
   SlidersHorizontal,
-  Sun,
+  Sparkles,
   Trash2,
   Undo2,
   X,
@@ -58,7 +59,30 @@ import {
   parseBreadcrumbs,
   type ToolbarActionId,
 } from '../utils/explorerLogic';
+import {
+  ANIMATED_THEMES,
+  MAX_THEME_SPEED,
+  MIN_THEME_SPEED,
+  STATIC_THEMES,
+  THEME_SPEED_PRESETS,
+  formatThemeSpeed,
+  getThemeDefinition,
+  type ThemeId,
+} from '../utils/themeRegistry';
 import { WindowCaptionControls } from './TabBar';
+
+const THEME_SWATCH_CLASSES: Record<ThemeId, string> = {
+  dark: 'bg-gradient-to-br from-[#121215] via-[#1e1e24] to-[#3b82f6]',
+  light: 'bg-gradient-to-br from-[#f3f5f9] via-[#ffffff] to-[#2563eb]',
+  'nordic-dusk': 'bg-gradient-to-br from-[#1b222d] via-[#242e3d] to-[#38bdf8]',
+  'warm-espresso': 'bg-gradient-to-br from-[#171311] via-[#241d19] to-[#f59e0b]',
+  'aurora-borealis': 'bg-gradient-to-br from-[#06282a] via-[#0f766e] to-[#6366f1]',
+  'midnight-ocean': 'bg-gradient-to-br from-[#071326] via-[#0369a1] to-[#38bdf8]',
+  'synthwave-pulse': 'bg-gradient-to-br from-[#1b0c2e] via-[#a21caf] to-[#06b6d4]',
+  'solar-flare': 'bg-gradient-to-br from-[#1f0e0a] via-[#c2410c] to-[#fbbf24]',
+  'cyber-matrix': 'bg-gradient-to-br from-[#06140c] via-[#15803d] to-[#4ade80]',
+  'prism-daylight': 'bg-gradient-to-br from-[#bae6fd] via-[#ddd6fe] to-[#fbcfe8]',
+};
 
 interface TitleToolbarProps {
   currentPath: string;
@@ -85,7 +109,8 @@ interface TitleToolbarProps {
   previewOpen: boolean;
   inspectorOpen: boolean;
   splitPane: boolean;
-  theme: 'dark' | 'light';
+  theme: ThemeId;
+  themeSpeed: number;
   activityOpen: boolean;
   runningOpsCount: number;
   isVaultLocked?: boolean;
@@ -95,7 +120,8 @@ interface TitleToolbarProps {
   onTogglePreview: () => void;
   onToggleInspector: () => void;
   onToggleSplitPane: () => void;
-  onToggleTheme: () => void;
+  onSelectTheme: (themeId: ThemeId) => void;
+  onThemeSpeedChange: (speed: number) => void;
   onToggleActivity: () => void;
   onOpenCompare: () => void;
   onOpenStorageAnalyzer: () => void;
@@ -160,6 +186,7 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
   inspectorOpen,
   splitPane,
   theme,
+  themeSpeed,
   activityOpen,
   runningOpsCount,
   isVaultLocked = false,
@@ -169,7 +196,8 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
   onTogglePreview,
   onToggleInspector,
   onToggleSplitPane,
-  onToggleTheme,
+  onSelectTheme,
+  onThemeSpeedChange,
   onToggleActivity,
   onOpenCompare,
   onOpenStorageAnalyzer,
@@ -388,9 +416,10 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
 
   const activeViewLabel =
     ALL_VIEW_MODES.find((m) => m.id === normalizedView)?.label || 'Details';
+  const activeTheme = getThemeDefinition(theme);
 
   return (
-    <header className="bg-[var(--win-chrome)] border-b border-[var(--win-border)] shrink-0 select-none">
+    <header className="relative z-20 bg-[var(--win-chrome)] border-b border-[var(--win-border)] shrink-0 select-none">
       {/* Row 1: Navigation, Address/Breadcrumbs, Search + Window Caption Controls */}
       <div className="flex items-center gap-2 px-3 py-2 app-drag-region">
         <div className="flex items-center gap-1 shrink-0 app-no-drag">
@@ -1143,10 +1172,10 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
               <div
                 role="menu"
                 aria-label="Explorer settings menu"
-                className="absolute right-0 top-9 z-50 w-64 p-1.5 rounded-2xl bg-[var(--win-elevated)] border border-[var(--win-border-strong)] shadow-2xl"
+                className="absolute right-0 top-9 z-50 w-[344px] max-h-[82vh] overflow-y-auto p-2 rounded-2xl bg-[var(--win-elevated)] border border-[var(--win-border-strong)] shadow-2xl"
               >
                 <div className="px-2.5 py-1 text-[10px] font-semibold text-[var(--win-text-faint)] uppercase tracking-wider">
-                  Workspace & Appearance
+                  Workspace
                 </div>
 
                 <button
@@ -1190,28 +1219,136 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
                   </span>
                 </button>
 
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    onToggleTheme();
-                  }}
-                  className="w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl text-left text-xs text-[var(--win-text)] hover:bg-[var(--win-hover)]"
-                >
-                  <span className="flex items-center gap-2.5">
-                    {theme === 'dark' ? (
-                      <Sun className="w-3.5 h-3.5 text-amber-400" />
-                    ) : (
-                      <Moon className="w-3.5 h-3.5 text-indigo-500" />
-                    )}
-                    <span>{theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
-                  </span>
-                  <span className="text-[11px] text-[var(--win-text-faint)]">
-                    {theme === 'dark' ? 'Dark' : 'Light'}
-                  </span>
-                </button>
+                <div className="my-1.5 h-px bg-[var(--win-border)] mx-2" />
 
-                <div className="my-1 h-px bg-[var(--win-border)] mx-2" />
+                {/* Themes & Animated Themes */}
+                <div className="flex items-center justify-between px-2.5 py-1">
+                  <span className="flex items-center gap-1.5 text-[10px] font-semibold text-[var(--win-text-faint)] uppercase tracking-wider">
+                    <Palette className="w-3 h-3" />
+                    <span>Themes</span>
+                  </span>
+                  <span className="text-[11px] text-[var(--win-text-muted)] truncate max-w-[140px]">
+                    {activeTheme.name}
+                  </span>
+                </div>
+
+                {/* Classic Static Themes */}
+                <div className="px-1.5 pt-1 pb-2">
+                  <div className="px-1 pb-1 text-[10px] font-medium text-[var(--win-text-faint)]">
+                    Classic
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {STATIC_THEMES.map((preset) => {
+                      const active = theme === preset.id;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={active}
+                          onClick={() => onSelectTheme(preset.id)}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded-xl border text-left transition-colors ${
+                            active
+                              ? 'bg-[var(--win-active)] border-blue-500/60 text-[var(--win-text)]'
+                              : 'bg-[var(--win-surface)] border-[var(--win-border)] text-[var(--win-text-muted)] hover:text-[var(--win-text)] hover:bg-[var(--win-hover)]'
+                          }`}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={`w-4 h-4 rounded-md border border-white/20 shrink-0 ${THEME_SWATCH_CLASSES[preset.id]}`}
+                          />
+                          <span className="text-[11px] font-medium truncate flex-1">{preset.name}</span>
+                          {active && <Check className="w-3 h-3 text-blue-500 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 6 Animated Themes */}
+                <div className="px-1.5 pb-2">
+                  <div className="flex items-center gap-1 px-1 pb-1 text-[10px] font-medium text-[var(--win-text-faint)]">
+                    <Sparkles className="w-3 h-3 text-blue-400" />
+                    <span>Animated</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {ANIMATED_THEMES.map((preset) => {
+                      const active = theme === preset.id;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={active}
+                          onClick={() => onSelectTheme(preset.id)}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded-xl border text-left transition-colors ${
+                            active
+                              ? 'bg-[var(--win-active)] border-blue-500/60 text-[var(--win-text)]'
+                              : 'bg-[var(--win-surface)] border-[var(--win-border)] text-[var(--win-text-muted)] hover:text-[var(--win-text)] hover:bg-[var(--win-hover)]'
+                          }`}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={`w-5 h-5 rounded-lg border border-white/20 shrink-0 ${THEME_SWATCH_CLASSES[preset.id]}`}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[11px] font-medium truncate leading-tight">
+                              {preset.name}
+                            </span>
+                            <span className="block text-[10px] text-[var(--win-text-faint)] truncate leading-tight">
+                              {preset.subtitle}
+                            </span>
+                          </span>
+                          {active && <Check className="w-3 h-3 text-blue-500 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Animation Speed Control */}
+                <div className="mx-1.5 mb-2 p-2.5 rounded-xl bg-[var(--win-surface)] border border-[var(--win-border)] space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-[var(--win-text)] font-medium">
+                      <Gauge className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Animation Speed</span>
+                    </span>
+                    <span className="text-[11px] font-mono-tabular text-blue-400 font-semibold">
+                      {formatThemeSpeed(themeSpeed)}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    aria-label="Theme animation speed"
+                    min={MIN_THEME_SPEED}
+                    max={MAX_THEME_SPEED}
+                    step={0.25}
+                    value={themeSpeed}
+                    onChange={(e) => onThemeSpeedChange(Number(e.target.value))}
+                    className="w-full accent-blue-500 cursor-pointer"
+                  />
+                  <div className="flex items-center justify-between gap-1">
+                    {THEME_SPEED_PRESETS.map((speedOpt) => {
+                      const activeSpeed = Math.abs(themeSpeed - speedOpt) < 0.01;
+                      return (
+                        <button
+                          key={speedOpt}
+                          type="button"
+                          onClick={() => onThemeSpeedChange(speedOpt)}
+                          className={`flex-1 py-1 rounded-lg text-[10px] font-mono-tabular transition-colors ${
+                            activeSpeed
+                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40 font-semibold'
+                              : 'bg-[var(--win-control)] text-[var(--win-text-muted)] hover:text-[var(--win-text)] hover:bg-[var(--win-hover)] border border-transparent'
+                          }`}
+                        >
+                          {formatThemeSpeed(speedOpt)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="my-1.5 h-px bg-[var(--win-border)] mx-2" />
 
                 <div className="px-2.5 py-1 text-[10px] font-semibold text-[var(--win-text-faint)] uppercase tracking-wider">
                   Tools
