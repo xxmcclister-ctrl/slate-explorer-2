@@ -67,7 +67,6 @@ import {
   MAX_THEME_SPEED,
   MIN_THEME_SPEED,
   STATIC_THEMES,
-  THEME_SPEED_PRESETS,
   formatThemeSpeed,
   getThemeDefinition,
   type ThemeId,
@@ -1332,13 +1331,8 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
                             aria-hidden="true"
                             className={`w-5 h-5 rounded-lg border border-white/20 shrink-0 ${THEME_SWATCH_CLASSES[preset.id]}`}
                           />
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-[11px] font-medium truncate leading-tight">
-                              {preset.name}
-                            </span>
-                            <span className="block text-[10px] text-[var(--win-text-faint)] truncate leading-tight">
-                              {preset.subtitle}
-                            </span>
+                          <span className="text-[11px] font-medium truncate flex-1">
+                            {preset.name.split(/\s+/).slice(0, 2).join(' ')}
                           </span>
                           {active && <Check className="w-3 h-3 text-blue-500 shrink-0" />}
                         </button>
@@ -1368,25 +1362,6 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
                     onChange={(e) => onThemeSpeedChange(Number(e.target.value))}
                     className="w-full accent-blue-500 cursor-pointer"
                   />
-                  <div className="flex items-center justify-between gap-1">
-                    {THEME_SPEED_PRESETS.map((speedOpt) => {
-                      const activeSpeed = Math.abs(themeSpeed - speedOpt) < 0.01;
-                      return (
-                        <button
-                          key={speedOpt}
-                          type="button"
-                          onClick={() => onThemeSpeedChange(speedOpt)}
-                          className={`flex-1 py-1 rounded-lg text-[10px] font-mono-tabular transition-colors ${
-                            activeSpeed
-                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40 font-semibold'
-                              : 'bg-[var(--win-control)] text-[var(--win-text-muted)] hover:text-[var(--win-text)] hover:bg-[var(--win-hover)] border border-transparent'
-                          }`}
-                        >
-                          {formatThemeSpeed(speedOpt)}
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
 
                 <div className="my-1.5 h-px bg-[var(--win-border)] mx-2" />

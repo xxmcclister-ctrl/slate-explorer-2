@@ -6,26 +6,55 @@ interface ThemeBackdropProps {
   speed?: number;
 }
 
+function hexToRgbTuple(hex: string, darkenFactor = 1): string {
+  const clean = hex.trim().replace(/^#/, '');
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) {
+    return '165, 180, 252';
+  }
+  const r = Math.round(parseInt(clean.slice(0, 2), 16) * darkenFactor);
+  const g = Math.round(parseInt(clean.slice(2, 4), 16) * darkenFactor);
+  const b = Math.round(parseInt(clean.slice(4, 6), 16) * darkenFactor);
+  return `${r}, ${g}, ${b}`;
+}
+
 interface StarParticle {
   x: number;
   y: number;
   z: number;
   pz: number;
-  tint: string;
+  tintIndex: number;
   sizeScale: number;
 }
 
-const STAR_TINTS = [
-  '226, 232, 240', // Crisp starlight white-slate
-  '125, 211, 252', // Deep blue star
-  '165, 180, 252', // Indigo star
-  '248, 250, 252', // Bright white core
-];
+const DEFAULT_BACKDROP_COLORS: [string, string, string] = ['#38bdf8', '#818cf8', '#e2e8f0'];
 
-const StarfieldWarpCanvas: React.FC<{ speed: number }> = ({ speed }) => {
+interface StarfieldWarpCanvasProps {
+  speed: number;
+  backdropColors?: [string, string, string];
+  colorScheme: 'dark' | 'light';
+}
+
+const StarfieldWarpCanvas: React.FC<StarfieldWarpCanvasProps> = ({
+  speed,
+  backdropColors,
+  colorScheme,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const speedRef = useRef(clampThemeSpeed(speed));
   speedRef.current = clampThemeSpeed(speed);
+
+  const colors = backdropColors ?? DEFAULT_BACKDROP_COLORS;
+  const starTintScale = colorScheme === 'light' ? 0.68 : 1;
+  const paletteRef = useRef<string[]>([]);
+  paletteRef.current = [
+    hexToRgbTuple(colors[0], starTintScale),
+    hexToRgbTuple(colors[1], starTintScale),
+    hexToRgbTuple(colors[2], starTintScale),
+    colorScheme === 'light' ? '79, 70, 229' : '248, 250, 252',
+  ];
+
+  const colorSchemeRef = useRef(colorScheme);
+  colorSchemeRef.current = colorScheme;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -45,7 +74,7 @@ const StarfieldWarpCanvas: React.FC<{ speed: number }> = ({ speed }) => {
         y: (Math.random() - 0.5) * 1400,
         z,
         pz: z,
-        tint: STAR_TINTS[Math.floor(Math.random() * STAR_TINTS.length)],
+        tintIndex: Math.floor(Math.random() * 4),
         sizeScale: 0.65 + Math.random() * 0.95,
       };
     };
@@ -78,14 +107,22 @@ const StarfieldWarpCanvas: React.FC<{ speed: number }> = ({ speed }) => {
       const dtSec = Math.min(0.06, Math.max(0.001, (now - lastTs) / 1000));
       lastTs = now;
 
-      // Deep midnight space void + gentle galactic horizon glow
+      const palette = paletteRef.current;
+      const isLight = colorSchemeRef.current === 'light';
+
       ctx.clearRect(0, 0, width, height);
       const cx = width * 0.5;
       const cy = height * 0.48;
       const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(width, height) * 0.72);
-      bgGrad.addColorStop(0, 'rgba(30, 41, 82, 0.34)');
-      bgGrad.addColorStop(0.55, 'rgba(10, 15, 36, 0.24)');
-      bgGrad.addColorStop(1, 'rgba(2, 4, 10, 0.08)');
+      if (isLight) {
+        bgGrad.addColorStop(0, `rgba(${palette[1]}, 0.16)`);
+        bgGrad.addColorStop(0.55, `rgba(${palette[0]}, 0.1)`);
+        bgGrad.addColorStop(1, 'rgba(229, 235, 245, 0.04)');
+      } else {
+        bgGrad.addColorStop(0, `rgba(${palette[1]}, 0.22)`);
+        bgGrad.addColorStop(0.55, `rgba(${palette[0]}, 0.12)`);
+        bgGrad.addColorStop(1, 'rgba(2, 4, 10, 0.08)');
+      }
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
@@ -115,14 +152,17 @@ const StarfieldWarpCanvas: React.FC<{ speed: number }> = ({ speed }) => {
         }
 
         const proximity = 1 - star.z / maxDepth;
-        const alpha = Math.min(0.92, Math.max(0.12, proximity * 0.95));
+        const alpha = isLight
+          ? Math.min(0.96, Math.max(0.28, proximity * 1.1))
+          : Math.min(0.92, Math.max(0.14, proximity * 0.95));
         const radius = Math.max(0.55, proximity * 2.15 * star.sizeScale);
+        const tint = palette[star.tintIndex % palette.length];
 
         if (!reducedMotion && proximity > 0.14) {
           ctx.beginPath();
           ctx.moveTo(px, py);
           ctx.lineTo(sx, sy);
-          ctx.strokeStyle = `rgba(${star.tint}, ${(alpha * 0.58).toFixed(3)})`;
+          ctx.strokeStyle = `rgba(${tint}, ${(alpha * (isLight ? 0.72 : 0.58)).toFixed(3)})`;
           ctx.lineWidth = radius * 1.05;
           ctx.lineCap = 'round';
           ctx.stroke();
@@ -130,7 +170,7 @@ const StarfieldWarpCanvas: React.FC<{ speed: number }> = ({ speed }) => {
 
         ctx.beginPath();
         ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${star.tint}, ${alpha.toFixed(3)})`;
+        ctx.fillStyle = `rgba(${tint}, ${alpha.toFixed(3)})`;
         ctx.fill();
       }
 
@@ -155,94 +195,20 @@ export const ThemeBackdrop: React.FC<ThemeBackdropProps> = ({ theme, speed = 1 }
     return null;
   }
 
-  switch (theme.backdropEffect) {
-    case 'aurora':
-      return (
-        <div
-          aria-hidden="true"
-          data-testid="theme-backdrop"
-          data-theme-effect="aurora"
-          className="pointer-events-none absolute inset-0 overflow-hidden z-0"
-        >
-          <div className="theme-orb-1 theme-anim-drift-a absolute -top-28 -left-24 w-[62%] h-[68%] rounded-full opacity-55 blur-3xl" />
-          <div className="theme-orb-2 theme-anim-drift-b absolute top-[18%] right-[-14%] w-[56%] h-[64%] rounded-full opacity-45 blur-3xl" />
-          <div className="theme-orb-3 theme-anim-drift-c absolute -bottom-28 left-[24%] w-[58%] h-[60%] rounded-full opacity-50 blur-3xl" />
-        </div>
-      );
-
-    case 'ocean':
-      return (
-        <div
-          aria-hidden="true"
-          data-testid="theme-backdrop"
-          data-theme-effect="ocean"
-          className="pointer-events-none absolute inset-0 overflow-hidden z-0"
-        >
-          <div className="theme-orb-1 theme-anim-ocean absolute -bottom-32 -left-20 w-[75%] h-[65%] rounded-full opacity-55 blur-3xl" />
-          <div className="theme-orb-2 theme-anim-drift-b absolute -top-24 right-[-12%] w-[60%] h-[58%] rounded-full opacity-45 blur-3xl" />
-          <div className="theme-orb-3 theme-anim-drift-a absolute top-[28%] left-[20%] w-[50%] h-[50%] rounded-full opacity-40 blur-3xl" />
-        </div>
-      );
-
-    case 'synthwave':
-      return (
-        <div
-          aria-hidden="true"
-          data-testid="theme-backdrop"
-          data-theme-effect="synthwave"
-          className="pointer-events-none absolute inset-0 overflow-hidden z-0"
-        >
-          <div className="theme-synth-grid absolute inset-0 opacity-60" />
-          <div className="theme-orb-1 theme-anim-synth absolute -bottom-24 left-[8%] w-[65%] h-[62%] rounded-full opacity-55 blur-3xl" />
-          <div className="theme-orb-2 theme-anim-drift-b absolute -top-24 -left-16 w-[55%] h-[58%] rounded-full opacity-45 blur-3xl" />
-          <div className="theme-orb-3 theme-anim-drift-a absolute top-[12%] -right-16 w-[48%] h-[52%] rounded-full opacity-45 blur-3xl" />
-        </div>
-      );
-
-    case 'starfield':
-      return (
-        <div
-          aria-hidden="true"
-          data-testid="theme-backdrop"
-          data-theme-effect="starfield"
-          className="pointer-events-none absolute inset-0 overflow-hidden z-0"
-        >
-          <div className="theme-orb-1 theme-anim-drift-c absolute -top-32 -left-20 w-[55%] h-[55%] rounded-full opacity-25 blur-3xl" />
-          <div className="theme-orb-2 theme-anim-drift-b absolute -bottom-28 -right-16 w-[52%] h-[52%] rounded-full opacity-22 blur-3xl" />
-          <StarfieldWarpCanvas speed={speed} />
-        </div>
-      );
-
-    case 'matrix':
-      return (
-        <div
-          aria-hidden="true"
-          data-testid="theme-backdrop"
-          data-theme-effect="matrix"
-          className="pointer-events-none absolute inset-0 overflow-hidden z-0"
-        >
-          <div className="theme-matrix-grid absolute inset-0 opacity-75" />
-          <div className="theme-matrix-beam theme-anim-scan absolute inset-x-0 h-[38%]" />
-          <div className="theme-orb-1 theme-anim-drift-c absolute -top-24 -left-20 w-[52%] h-[52%] rounded-full opacity-40 blur-3xl" />
-          <div className="theme-orb-2 theme-anim-drift-b absolute -bottom-24 right-[-10%] w-[52%] h-[52%] rounded-full opacity-35 blur-3xl" />
-        </div>
-      );
-
-    case 'prism':
-      return (
-        <div
-          aria-hidden="true"
-          data-testid="theme-backdrop"
-          data-theme-effect="prism"
-          className="pointer-events-none absolute inset-0 overflow-hidden z-0"
-        >
-          <div className="theme-orb-1 theme-anim-drift-a absolute -top-24 -left-16 w-[58%] h-[60%] rounded-full opacity-60 blur-3xl" />
-          <div className="theme-orb-2 theme-anim-drift-b absolute top-[18%] -right-16 w-[54%] h-[58%] rounded-full opacity-55 blur-3xl" />
-          <div className="theme-orb-3 theme-anim-drift-c absolute -bottom-24 left-[22%] w-[56%] h-[56%] rounded-full opacity-55 blur-3xl" />
-        </div>
-      );
-
-    default:
-      return null;
-  }
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="theme-backdrop"
+      data-theme-effect={theme.backdropEffect}
+      className="pointer-events-none absolute inset-0 overflow-hidden z-0"
+    >
+      <div className="theme-orb-1 theme-anim-drift-c absolute -top-32 -left-20 w-[55%] h-[55%] rounded-full opacity-25 blur-3xl" />
+      <div className="theme-orb-2 theme-anim-drift-b absolute -bottom-28 -right-16 w-[52%] h-[52%] rounded-full opacity-22 blur-3xl" />
+      <StarfieldWarpCanvas
+        speed={speed}
+        backdropColors={theme.backdropColors}
+        colorScheme={theme.colorScheme}
+      />
+    </div>
+  );
 };
