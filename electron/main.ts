@@ -72,13 +72,24 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
+function resolveAppIconPath(): string | undefined {
+  const candidates = [
+    path.join(__dirname, '../build/icon.png'),
+    path.join(__dirname, '../public/app-icon.png'),
+    path.join(__dirname, '../dist/app-icon.png'),
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
 function createMainWindow(initialPath?: string): void {
+  const iconPath = resolveAppIconPath();
   const win = new BrowserWindow({
     width: 1380,
     height: 880,
     minWidth: 940,
     minHeight: 600,
     backgroundColor: '#121215',
+    ...(iconPath ? { icon: iconPath } : {}),
     frame: false,
     titleBarStyle: 'hidden',
     roundedCorners: true,

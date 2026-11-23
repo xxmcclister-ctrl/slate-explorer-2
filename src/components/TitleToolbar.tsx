@@ -428,9 +428,20 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
 
   return (
     <header className="relative z-20 bg-[var(--win-chrome)] border border-[var(--win-border)] rounded-2xl mx-1.5 mt-1.5 shrink-0 select-none">
-      {/* Row 1: Navigation, Address/Breadcrumbs, Search + Window Caption Controls */}
+      {/* Row 1: App Icon, Navigation, Address/Breadcrumbs, Search + Window Caption Controls */}
       <div className="flex items-center gap-2 px-3 py-2 app-drag-region">
         <div className="flex items-center gap-1 shrink-0 app-no-drag">
+          <div
+            title="Slate Explorer"
+            className="w-7 h-7 mr-1 rounded-lg overflow-hidden border border-white/10 bg-[#0b0b0d] shadow-xs shrink-0 flex items-center justify-center"
+          >
+            <img
+              src="/app-icon.png"
+              alt="Slate Explorer"
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-cover"
+            />
+          </div>
           {!sidebarOpen && (
             <button
               type="button"
