@@ -10,6 +10,7 @@ import {
   Library,
   Lock,
   Network,
+  PanelLeft,
   ShieldCheck,
   Star,
   Unlock,
@@ -53,6 +54,7 @@ interface SidebarProps {
   onDropFilesIntoFolder: (sources: string[], destDir: string, isCopy: boolean) => void;
   onDropFilesToRecycleBin: (sources: string[]) => void;
   onSidebarContextMenu: (e: React.MouseEvent, target: SidebarContextTarget) => void;
+  onToggleSidebar: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -70,6 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDropFilesIntoFolder,
   onDropFilesToRecycleBin,
   onSidebarContextMenu,
+  onToggleSidebar,
 }) => {
   const bridge = useMemo(() => getFsBridge(), []);
   const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
@@ -288,9 +291,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="shrink-0 max-h-[52%] overflow-y-auto px-2.5 pt-2 pb-3 space-y-4">
         {pinnedFavorites.length > 0 && (
           <section>
-            <h2 className="px-2.5 mb-1 text-[11px] font-semibold text-[var(--win-text-faint)] tracking-wide">
-              Favorites
-            </h2>
+            <div className="flex items-center justify-between px-2.5 mb-1">
+              <h2 className="text-[11px] font-semibold text-[var(--win-text-faint)] tracking-wide">
+                Favorites
+              </h2>
+              <button
+                type="button"
+                onClick={onToggleSidebar}
+                aria-label="Hide navigation sidebar"
+                title="Hide sidebar"
+                className="w-6 h-6 rounded-lg flex items-center justify-center text-[var(--win-text-muted)] hover:text-[var(--win-text)] hover:bg-[var(--win-hover)] transition-colors"
+              >
+                <PanelLeft className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <Reorder.Group
               axis="y"
               values={pinnedFavorites}
@@ -354,9 +368,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Quick Access */}
         <section>
-          <h2 className="px-2.5 mb-1 text-[11px] font-semibold text-[var(--win-text-faint)] tracking-wide">
-            Quick Access
-          </h2>
+          <div className="flex items-center justify-between px-2.5 mb-1">
+            <h2 className="text-[11px] font-semibold text-[var(--win-text-faint)] tracking-wide">
+              Quick Access
+            </h2>
+            {pinnedFavorites.length === 0 && (
+              <button
+                type="button"
+                onClick={onToggleSidebar}
+                aria-label="Hide navigation sidebar"
+                title="Hide sidebar"
+                className="w-6 h-6 rounded-lg flex items-center justify-center text-[var(--win-text-muted)] hover:text-[var(--win-text)] hover:bg-[var(--win-hover)] transition-colors"
+              >
+                <PanelLeft className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
 
           <Reorder.Group
             axis="y"

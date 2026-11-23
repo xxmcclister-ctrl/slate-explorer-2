@@ -1774,15 +1774,9 @@ export default function App() {
             : 'w-full max-w-[1260px] h-full max-h-[86vh]'
         }`}
       >
-        {/* Row 0: Native Windows 11 Tab Strip + Window Captions */}
-        <TabBar
-          tabs={tabs}
-          activeTabId={activeTabId}
+        {/* Row 1 & 2: Navigation, Address Bar, Search + Window Controls & Command Bar */}
+        <TitleToolbar
           isWindowMaximized={previewMaximized}
-          bridge={bridge}
-          onSelectTab={handleSelectTab}
-          onNewTab={() => handleNewTab()}
-          onCloseTab={handleCloseTab}
           onWindowMinimize={() => {
             if (isSecureFolderPath(primaryPath) || (splitPane && isSecureFolderPath(secondaryPath))) {
               triggerAutoLockOnLeave();
@@ -1796,10 +1790,6 @@ export default function App() {
             }
             setPreviewClosed(true);
           }}
-        />
-
-        {/* Row 1 & 2: Navigation, Address Bar, Search + Command Bar */}
-        <TitleToolbar
           currentPath={currentPath}
           canGoBack={canGoBack}
           canGoForward={canGoForward}
@@ -1917,141 +1907,155 @@ export default function App() {
               onDropFilesIntoFolder={handleDropIntoFolder}
               onDropFilesToRecycleBin={handleDropFilesToRecycleBin}
               onSidebarContextMenu={handleSidebarContextMenu}
+              onToggleSidebar={() => setSidebarOpen((o) => !o)}
             />
           )}
 
-          {/* Primary File Viewport */}
-          <FileViewport
-            currentPath={primaryPath}
-            entries={displayedEntries}
-            viewMode={viewMode}
-            tileSize={tileSize}
-            sortField={sortField}
-            sortDirection={sortDirection}
-            groupBy={groupBy}
-            visibleColumns={visibleColumns}
-            splitMode={splitPane}
-            isActivePane={!splitPane || activePane === 'left'}
-            paneTitle={splitPane ? primaryPath : undefined}
-            selectedPaths={selectedPaths}
-            cutPaths={cutPaths}
-            renamingPath={renamingPath}
-            loading={loading}
-            error={dirError}
-            isSearchActive={Boolean(searchQuery.trim() || advancedFilter)}
-            searchQuery={searchQuery}
-            onFocusPane={() => setActivePane('left')}
-            onSortChange={handleSortChange}
-            onSelectEntry={(p, m) => handleSelectEntry(p, m, 'left')}
-            onSetSelection={(paths) => handleSetSelection(paths, 'left')}
-            onOpenEntry={(entry) => handleOpenEntry(entry, 'left')}
-            onContextMenu={(e, entry) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setActivePane('left');
-              setContextMenu({ kind: 'viewport', x: e.clientX, y: e.clientY, targetEntry: entry });
-            }}
-            onCommitRename={handleCommitRename}
-            onCancelRename={() => setRenamingPath(null)}
-            onDropIntoFolder={handleDropIntoFolder}
-            onNewFolder={() => {
-              setActivePane('left');
-              setNewItemMode('folder');
-            }}
-            onGoBack={goBack}
-            onRestoreSelected={handleRestoreRecycleBin}
-            onEmptyRecycleBin={handleEmptyRecycleBin}
-            secureStatus={secureStatus}
-            onSetupSecurePin={handleSetupSecurePin}
-            onUnlockSecureFolder={handleUnlockSecureFolder}
-            onForgotSecurePin={handleForgotSecurePin}
-            onOpenChangeSecurePin={() => setChangePinOpen(true)}
-            onLockSecureFolder={handleLockSecureFolder}
-          />
-
-          {/* Secondary Dual-Pane Viewport */}
-          {splitPane && (
-            <FileViewport
-              currentPath={secondaryPath}
-              entries={displayedSecondaryEntries}
-              viewMode={viewMode}
-              tileSize={tileSize}
-              sortField={sortField}
-              sortDirection={sortDirection}
-              groupBy={groupBy}
-              visibleColumns={visibleColumns}
-              splitMode
-              isActivePane={activePane === 'right'}
-              paneTitle={secondaryPath}
-              selectedPaths={secondarySelectedPaths}
-              cutPaths={cutPaths}
-              renamingPath={renamingPath}
-              loading={secondaryLoading}
-              error={secondaryError}
-              isSearchActive={false}
-              searchQuery=""
-              onFocusPane={() => setActivePane('right')}
-              onSortChange={handleSortChange}
-              onSelectEntry={(p, m) => handleSelectEntry(p, m, 'right')}
-              onSetSelection={(paths) => handleSetSelection(paths, 'right')}
-              onOpenEntry={(entry) => handleOpenEntry(entry, 'right')}
-              onContextMenu={(e, entry) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setActivePane('right');
-                setContextMenu({ kind: 'viewport', x: e.clientX, y: e.clientY, targetEntry: entry });
-              }}
-              onCommitRename={handleCommitRename}
-              onCancelRename={() => setRenamingPath(null)}
-              onDropIntoFolder={handleDropIntoFolder}
-              onNewFolder={() => {
-                setActivePane('right');
-                setNewItemMode('folder');
-              }}
-              onGoBack={goBack}
-              onRestoreSelected={handleRestoreRecycleBin}
-              onEmptyRecycleBin={handleEmptyRecycleBin}
-              secureStatus={secureStatus}
-              onSetupSecurePin={handleSetupSecurePin}
-              onUnlockSecureFolder={handleUnlockSecureFolder}
-              onForgotSecurePin={handleForgotSecurePin}
-              onOpenChangeSecurePin={() => setChangePinOpen(true)}
-              onLockSecureFolder={handleLockSecureFolder}
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+            {/* Explorer Tabs Strip above main directory viewport */}
+            <TabBar
+              tabs={tabs}
+              activeTabId={activeTabId}
+              onSelectTab={handleSelectTab}
+              onNewTab={() => handleNewTab()}
+              onCloseTab={handleCloseTab}
             />
-          )}
 
-          {/* File Preview Pane */}
-          <PreviewPane
-            open={previewOpen}
-            entry={selectedEntries[0] ?? null}
-            jsonPrettyEnabled={jsonPrettyEnabled}
-            csvTableEnabled={csvTableEnabled}
-            onClose={() => setPreviewOpen(false)}
-            onOpenEntry={(entry) => handleOpenEntry(entry)}
-            onOpenProperties={(entry) => setFullPropertiesTarget(entry.path)}
-          />
+            <div className="flex-1 min-h-0 flex overflow-hidden">
+              {/* Primary File Viewport */}
+              <FileViewport
+                currentPath={primaryPath}
+                entries={displayedEntries}
+                viewMode={viewMode}
+                tileSize={tileSize}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                groupBy={groupBy}
+                visibleColumns={visibleColumns}
+                splitMode={splitPane}
+                isActivePane={!splitPane || activePane === 'left'}
+                paneTitle={splitPane ? primaryPath : undefined}
+                selectedPaths={selectedPaths}
+                cutPaths={cutPaths}
+                renamingPath={renamingPath}
+                loading={loading}
+                error={dirError}
+                isSearchActive={Boolean(searchQuery.trim() || advancedFilter)}
+                searchQuery={searchQuery}
+                onFocusPane={() => setActivePane('left')}
+                onSortChange={handleSortChange}
+                onSelectEntry={(p, m) => handleSelectEntry(p, m, 'left')}
+                onSetSelection={(paths) => handleSetSelection(paths, 'left')}
+                onOpenEntry={(entry) => handleOpenEntry(entry, 'left')}
+                onContextMenu={(e, entry) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setActivePane('left');
+                  setContextMenu({ kind: 'viewport', x: e.clientX, y: e.clientY, targetEntry: entry });
+                }}
+                onCommitRename={handleCommitRename}
+                onCancelRename={() => setRenamingPath(null)}
+                onDropIntoFolder={handleDropIntoFolder}
+                onNewFolder={() => {
+                  setActivePane('left');
+                  setNewItemMode('folder');
+                }}
+                onGoBack={goBack}
+                onRestoreSelected={handleRestoreRecycleBin}
+                onEmptyRecycleBin={handleEmptyRecycleBin}
+                secureStatus={secureStatus}
+                onSetupSecurePin={handleSetupSecurePin}
+                onUnlockSecureFolder={handleUnlockSecureFolder}
+                onForgotSecurePin={handleForgotSecurePin}
+                onOpenChangeSecurePin={() => setChangePinOpen(true)}
+                onLockSecureFolder={handleLockSecureFolder}
+              />
 
-          {/* Quick Details Inspector */}
-          <PropertiesDrawer
-            open={inspectorOpen}
-            targetPath={inspectorTargetPath}
-            previewEntry={inspectorEntry}
-            onClose={() => setInspectorOpen(false)}
-            onCopyPath={handleCopyPath}
-            onOpenEntry={(entry) => handleOpenEntry(entry)}
-            onOpenFullProperties={(p) => setFullPropertiesTarget(p)}
-          />
+              {/* Secondary Dual-Pane Viewport */}
+              {splitPane && (
+                <FileViewport
+                  currentPath={secondaryPath}
+                  entries={displayedSecondaryEntries}
+                  viewMode={viewMode}
+                  tileSize={tileSize}
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  groupBy={groupBy}
+                  visibleColumns={visibleColumns}
+                  splitMode
+                  isActivePane={activePane === 'right'}
+                  paneTitle={secondaryPath}
+                  selectedPaths={secondarySelectedPaths}
+                  cutPaths={cutPaths}
+                  renamingPath={renamingPath}
+                  loading={secondaryLoading}
+                  error={secondaryError}
+                  isSearchActive={false}
+                  searchQuery=""
+                  onFocusPane={() => setActivePane('right')}
+                  onSortChange={handleSortChange}
+                  onSelectEntry={(p, m) => handleSelectEntry(p, m, 'right')}
+                  onSetSelection={(paths) => handleSetSelection(paths, 'right')}
+                  onOpenEntry={(entry) => handleOpenEntry(entry, 'right')}
+                  onContextMenu={(e, entry) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setActivePane('right');
+                    setContextMenu({ kind: 'viewport', x: e.clientX, y: e.clientY, targetEntry: entry });
+                  }}
+                  onCommitRename={handleCommitRename}
+                  onCancelRename={() => setRenamingPath(null)}
+                  onDropIntoFolder={handleDropIntoFolder}
+                  onNewFolder={() => {
+                    setActivePane('right');
+                    setNewItemMode('folder');
+                  }}
+                  onGoBack={goBack}
+                  onRestoreSelected={handleRestoreRecycleBin}
+                  onEmptyRecycleBin={handleEmptyRecycleBin}
+                  secureStatus={secureStatus}
+                  onSetupSecurePin={handleSetupSecurePin}
+                  onUnlockSecureFolder={handleUnlockSecureFolder}
+                  onForgotSecurePin={handleForgotSecurePin}
+                  onOpenChangeSecurePin={() => setChangePinOpen(true)}
+                  onLockSecureFolder={handleLockSecureFolder}
+                />
+              )}
 
-          {/* Operation Queue, Undo/Redo & Recent Activity Drawer */}
-          <ActivityQueueDrawer
-            open={activityOpen}
-            operations={operations}
-            undoState={undoState}
-            activityLog={activityLog}
-            onClose={() => setActivityOpen(false)}
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-          />
+              {/* File Preview Pane */}
+              <PreviewPane
+                open={previewOpen}
+                entry={selectedEntries[0] ?? null}
+                jsonPrettyEnabled={jsonPrettyEnabled}
+                csvTableEnabled={csvTableEnabled}
+                onClose={() => setPreviewOpen(false)}
+                onOpenEntry={(entry) => handleOpenEntry(entry)}
+                onOpenProperties={(entry) => setFullPropertiesTarget(entry.path)}
+              />
+
+              {/* Quick Details Inspector */}
+              <PropertiesDrawer
+                open={inspectorOpen}
+                targetPath={inspectorTargetPath}
+                previewEntry={inspectorEntry}
+                onClose={() => setInspectorOpen(false)}
+                onCopyPath={handleCopyPath}
+                onOpenEntry={(entry) => handleOpenEntry(entry)}
+                onOpenFullProperties={(p) => setFullPropertiesTarget(p)}
+              />
+
+              {/* Operation Queue, Undo/Redo & Recent Activity Drawer */}
+              <ActivityQueueDrawer
+                open={activityOpen}
+                operations={operations}
+                undoState={undoState}
+                activityLog={activityLog}
+                onClose={() => setActivityOpen(false)}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Bottom Status Bar */}

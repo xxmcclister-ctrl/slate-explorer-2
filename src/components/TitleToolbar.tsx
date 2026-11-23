@@ -58,6 +58,7 @@ import {
   parseBreadcrumbs,
   type ToolbarActionId,
 } from '../utils/explorerLogic';
+import { WindowCaptionControls } from './TabBar';
 
 interface TitleToolbarProps {
   currentPath: string;
@@ -127,6 +128,10 @@ interface TitleToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onCompress: () => void;
+  isWindowMaximized?: boolean;
+  onWindowMinimize?: () => void;
+  onWindowMaximizeToggle?: () => void;
+  onWindowClose?: () => void;
 }
 
 export const TitleToolbar: React.FC<TitleToolbarProps> = ({
@@ -197,6 +202,10 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
   onUndo,
   onRedo,
   onCompress,
+  isWindowMaximized,
+  onWindowMinimize,
+  onWindowMaximizeToggle,
+  onWindowClose,
 }) => {
   const bridge = getFsBridge();
   const [editingAddress, setEditingAddress] = useState(false);
@@ -382,18 +391,20 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
 
   return (
     <header className="bg-[var(--win-chrome)] border-b border-[var(--win-border)] shrink-0 select-none">
-      {/* Row 1: Navigation, Address/Breadcrumbs, Search + Advanced Filter Popover */}
-      <div className="flex items-center gap-2 px-3 py-2">
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={onToggleSidebar}
-            aria-label={sidebarOpen ? 'Hide navigation sidebar' : 'Show navigation sidebar'}
-            title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-[var(--win-text-muted)] hover:text-[var(--win-text)] hover:bg-[var(--win-hover)] transition-colors"
-          >
-            <PanelLeft className="w-4 h-4" />
-          </button>
+      {/* Row 1: Navigation, Address/Breadcrumbs, Search + Window Caption Controls */}
+      <div className="flex items-center gap-2 px-3 py-2 app-drag-region">
+        <div className="flex items-center gap-1 shrink-0 app-no-drag">
+          {!sidebarOpen && (
+            <button
+              type="button"
+              onClick={onToggleSidebar}
+              aria-label="Show navigation sidebar"
+              title="Show sidebar"
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-[var(--win-text-muted)] hover:text-[var(--win-text)] hover:bg-[var(--win-hover)] transition-colors"
+            >
+              <PanelLeft className="w-4 h-4" />
+            </button>
+          )}
           <button
             type="button"
             disabled={!canGoBack}
@@ -436,7 +447,7 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
         </div>
 
         {/* Editable Breadcrumb Address Bar */}
-        <div className="relative flex-1 min-w-0">
+        <div className="relative flex-1 min-w-0 max-w-3xl app-no-drag">
           {editingAddress ? (
             <div className="relative">
               <input
@@ -538,7 +549,7 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
         </div>
 
         {/* Live Search & Advanced Search Popover */}
-        <div className="relative flex items-center w-72 lg:w-80 shrink-0" ref={advSearchRef}>
+        <div className="relative flex items-center w-56 lg:w-64 shrink-0 app-no-drag" ref={advSearchRef}>
           <Search className="w-3.5 h-3.5 text-[var(--win-text-faint)] absolute left-3 pointer-events-none" />
           <input
             ref={searchInputRef}
@@ -554,7 +565,9 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
                   ? 'Search subfolders...'
                   : 'Search current folder...'
             }
-            className="w-full h-9 pl-8 pr-28 rounded-xl bg-[var(--win-surface)] border border-[var(--win-border)] focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-xs text-[var(--win-text)] placeholder-[var(--win-text-faint)] disabled:opacity-50 focus:outline-none transition-colors"
+            className={`w-full h-9 pl-8 ${
+              searchQuery || advancedFilter ? 'pr-24' : 'pr-[76px]'
+            } rounded-xl bg-[var(--win-surface)] border border-[var(--win-border)] focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-xs text-[var(--win-text)] placeholder-[var(--win-text-faint)] disabled:opacity-50 focus:outline-none transition-colors`}
           />
           <div className="absolute right-1.5 flex items-center gap-0.5">
             {(searchQuery || advancedFilter) && (
@@ -751,6 +764,14 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
             </form>
           )}
         </div>
+
+        <WindowCaptionControls
+          isWindowMaximized={isWindowMaximized}
+          bridge={bridge}
+          onWindowMinimize={onWindowMinimize}
+          onWindowMaximizeToggle={onWindowMaximizeToggle}
+          onWindowClose={onWindowClose}
+        />
       </div>
 
       {/* Row 2: Customizable Command Bar */}
