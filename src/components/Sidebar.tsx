@@ -285,7 +285,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onSidebarContextMenu(e, { kind: 'empty' });
         }
       }}
-      className="w-64 bg-[var(--win-chrome)] border-r border-[var(--win-border)] flex flex-col overflow-hidden shrink-0 select-none"
+      className="w-64 bg-[var(--win-chrome)] border border-[var(--win-border)] rounded-2xl ml-1.5 mb-1.5 flex flex-col overflow-hidden shrink-0 select-none"
     >
       {/* Pinned Top Navigation (Favorites, Quick Access, Libraries) */}
       <div className="shrink-0 max-h-[52%] overflow-y-auto px-2.5 pt-2 pb-3 space-y-4">
@@ -502,9 +502,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </section>
 
       {/* Secure Folder (4-digit PIN Protected, anchored above Drives) */}
+      <div className="mx-2.5 h-px bg-[var(--win-border)] shrink-0" />
       <section
         aria-label="Secure Folder"
-        className="px-2.5 py-2 border-t border-[var(--win-border)] shrink-0 flex items-center gap-1"
+        className="px-2.5 py-2 shrink-0 flex items-center gap-1"
       >
         <button
           type="button"
@@ -571,9 +572,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </section>
 
       {/* Bottom Anchored Drives & Volumes */}
+      <div className="mx-2.5 h-px bg-[var(--win-border)] shrink-0" />
       <section
         aria-label="Drives and volumes"
-        className="px-2.5 pt-2.5 pb-2 border-t border-[var(--win-border)] shrink-0 max-h-[34%] overflow-y-auto"
+        className="px-2.5 pt-2.5 pb-2 shrink-0 max-h-[34%] overflow-y-auto"
       >
         <h2 className="px-2 mb-1.5 text-[11px] font-semibold text-[var(--win-text-faint)] tracking-wide">
           This PC · Drives

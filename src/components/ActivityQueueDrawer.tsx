@@ -34,7 +34,7 @@ export const ActivityQueueDrawer: React.FC<ActivityQueueDrawerProps> = ({
   return (
     <aside
       aria-label="Activity and operation queue"
-      className="w-80 bg-[var(--win-surface)] border border-[var(--win-border)] rounded-2xl mr-2 mb-1 flex flex-col overflow-hidden shrink-0"
+      className="w-80 bg-[var(--win-surface)] border border-[var(--win-border)] rounded-2xl mr-1.5 mb-1.5 flex flex-col overflow-hidden shrink-0"
     >
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[var(--win-border)]">
         <div className="flex items-center gap-2">

@@ -554,7 +554,7 @@ export const FileViewport: React.FC<FileViewportProps> = ({
       <main
         aria-label={paneTitle || 'Secure Folder lock gate'}
         onMouseDown={onFocusPane}
-        className={`flex-1 min-w-0 bg-[var(--win-surface)] rounded-2xl border ${containerBorder} mx-1.5 mb-1 flex items-center justify-center p-8 overflow-y-auto`}
+        className={`flex-1 min-w-0 bg-[var(--win-surface)] rounded-2xl border ${containerBorder} mx-1.5 mb-1.5 flex items-center justify-center p-8 overflow-y-auto`}
       >
         <SecureFolderGate
           status={secureStatus ?? null}
@@ -570,7 +570,7 @@ export const FileViewport: React.FC<FileViewportProps> = ({
     return (
       <main
         onMouseDown={onFocusPane}
-        className={`flex-1 min-w-0 bg-[var(--win-surface)] rounded-2xl border ${containerBorder} mx-1.5 mb-1 flex items-center justify-center p-8`}
+        className={`flex-1 min-w-0 bg-[var(--win-surface)] rounded-2xl border ${containerBorder} mx-1.5 mb-1.5 flex items-center justify-center p-8`}
       >
         <div className="max-w-md w-full p-6 rounded-2xl bg-[var(--win-elevated)] border border-[var(--win-border-strong)] text-center space-y-4">
           <div className="w-11 h-11 rounded-2xl bg-rose-500/15 text-rose-500 flex items-center justify-center mx-auto">
@@ -596,7 +596,7 @@ export const FileViewport: React.FC<FileViewportProps> = ({
     <main
       aria-label={paneTitle || 'Directory contents'}
       onMouseDown={() => onFocusPane?.()}
-      className={`flex-1 min-w-0 bg-[var(--win-surface)] rounded-2xl border ${containerBorder} mx-1.5 mb-1 flex flex-col relative overflow-hidden select-none`}
+      className={`flex-1 min-w-0 bg-[var(--win-surface)] rounded-2xl border ${containerBorder} mx-1.5 mb-1.5 flex flex-col relative overflow-hidden select-none`}
       onContextMenu={(e) => {
         if (!(e.target as HTMLElement).closest('[data-entry-path]')) {
           e.preventDefault();

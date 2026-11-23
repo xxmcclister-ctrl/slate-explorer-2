@@ -105,7 +105,7 @@ export const PropertiesDrawer: React.FC<PropertiesDrawerProps> = ({
   return (
     <aside
       aria-label="Details inspector"
-      className="w-80 bg-[var(--win-surface)] border border-[var(--win-border)] rounded-2xl mr-2 mb-1 flex flex-col overflow-y-auto p-3.5 shrink-0"
+      className="w-80 bg-[var(--win-surface)] border border-[var(--win-border)] rounded-2xl mr-1.5 mb-1.5 flex flex-col overflow-y-auto p-3.5 shrink-0"
     >
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xs font-semibold text-[var(--win-text-muted)] tracking-wide">

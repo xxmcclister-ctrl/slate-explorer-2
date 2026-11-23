@@ -419,7 +419,7 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
   const activeTheme = getThemeDefinition(theme);
 
   return (
-    <header className="relative z-20 bg-[var(--win-chrome)] border-b border-[var(--win-border)] shrink-0 select-none">
+    <header className="relative z-20 bg-[var(--win-chrome)] border border-[var(--win-border)] rounded-2xl mx-1.5 mt-1.5 shrink-0 select-none">
       {/* Row 1: Navigation, Address/Breadcrumbs, Search + Window Caption Controls */}
       <div className="flex items-center gap-2 px-3 py-2 app-drag-region">
         <div className="flex items-center gap-1 shrink-0 app-no-drag">

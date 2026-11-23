@@ -106,7 +106,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     <div
       role="tablist"
       aria-label="Explorer tabs"
-      className="flex items-center gap-1 px-1.5 pt-0.5 pb-1.5 overflow-x-auto shrink-0 select-none"
+      className="flex items-center gap-1 px-1.5 pt-0 pb-1.5 overflow-x-auto shrink-0 select-none"
     >
       {tabs.map((tab) => {
         const active = tab.id === activeTabId;

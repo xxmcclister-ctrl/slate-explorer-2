@@ -1922,7 +1922,7 @@ export default function App() {
         />
 
         {/* Workspace Body */}
-        <div className="relative z-10 flex-1 min-h-0 flex overflow-hidden pt-1">
+        <div className="relative z-10 flex-1 min-h-0 flex overflow-hidden pt-1.5">
           {sidebarOpen && (
             <Sidebar
               currentPath={currentPath}
@@ -2100,7 +2100,7 @@ export default function App() {
         </div>
 
         {/* Bottom Status Bar */}
-        <footer className="relative z-10 h-8 px-4 bg-[var(--win-chrome)] border-t border-[var(--win-border)] flex items-center justify-between text-[11px] text-[var(--win-text-muted)] shrink-0 select-none">
+        <footer className="relative z-10 h-8 px-4 bg-[var(--win-chrome)] border border-[var(--win-border)] rounded-2xl mx-1.5 mb-1.5 flex items-center justify-between text-[11px] text-[var(--win-text-muted)] shrink-0 select-none">
           <div className="flex items-center gap-3 tabular-nums">
             <span>
               {activeDisplayedEntries.length.toLocaleString()}{' '}
