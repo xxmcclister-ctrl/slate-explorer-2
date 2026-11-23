@@ -1,0 +1,6 @@
+{
+  "name": "Slate Explorer",
+  "description": "Native dark-mode Windows File Explorer built with React, TypeScript, and Electron IPC.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,124 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --font-sans: "Plus Jakarta Sans", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+
+    --win-outer: #e9ecf2;
+    --win-chrome: #f3f5f9;
+    --win-surface: #ffffff;
+    --win-elevated: #f8f9fc;
+    --win-control: #e6e9f0;
+    --win-hover: rgba(0, 0, 0, 0.055);
+    --win-active: rgba(0, 0, 0, 0.09);
+    --win-border: rgba(0, 0, 0, 0.09);
+    --win-border-strong: rgba(0, 0, 0, 0.16);
+    --win-text: #141418;
+    --win-text-muted: #52525b;
+    --win-text-faint: #71717a;
+    --win-accent: #2563eb;
+    --win-accent-soft: rgba(37, 99, 235, 0.12);
+  }
+
+  .dark {
+    color-scheme: dark;
+    --win-outer: #0b0b0d;
+    --win-chrome: #121215;
+    --win-surface: #1e1e24;
+    --win-elevated: #26262e;
+    --win-control: #1a1a20;
+    --win-hover: rgba(255, 255, 255, 0.06);
+    --win-active: rgba(255, 255, 255, 0.1);
+    --win-border: rgba(255, 255, 255, 0.085);
+    --win-border-strong: rgba(255, 255, 255, 0.16);
+    --win-text: #f4f4f6;
+    --win-text-muted: #a1a1aa;
+    --win-text-faint: #71717a;
+    --win-accent: #3b82f6;
+    --win-accent-soft: rgba(59, 130, 246, 0.18);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: var(--win-outer);
+    color: var(--win-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  select {
+    user-select: text;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--win-accent);
+    outline-offset: 1px;
+  }
+}
+
+.font-mono-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom rounded scrollbars respecting active theme */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 140, 0.28);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 140, 0.45);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.app-drag-region {
+  -webkit-app-region: drag;
+}
+
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
