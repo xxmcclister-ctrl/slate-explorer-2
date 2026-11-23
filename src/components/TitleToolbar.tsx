@@ -27,9 +27,12 @@ import {
   Palette,
   PanelLeft,
   Pencil,
+  Pin,
+  PinOff,
   Puzzle,
   Redo2,
   RefreshCw,
+  RotateCcw,
   Scissors,
   Search,
   SearchCheck,
@@ -79,7 +82,7 @@ const THEME_SWATCH_CLASSES: Record<ThemeId, string> = {
   'aurora-borealis': 'bg-gradient-to-br from-[#06282a] via-[#0f766e] to-[#6366f1]',
   'midnight-ocean': 'bg-gradient-to-br from-[#071326] via-[#0369a1] to-[#38bdf8]',
   'synthwave-pulse': 'bg-gradient-to-br from-[#1b0c2e] via-[#a21caf] to-[#06b6d4]',
-  'solar-flare': 'bg-gradient-to-br from-[#1f0e0a] via-[#c2410c] to-[#fbbf24]',
+  'midnight-starfield': 'bg-gradient-to-br from-[#02040a] via-[#0f172a] to-[#818cf8]',
   'cyber-matrix': 'bg-gradient-to-br from-[#06140c] via-[#15803d] to-[#4ade80]',
   'prism-daylight': 'bg-gradient-to-br from-[#bae6fd] via-[#ddd6fe] to-[#fbcfe8]',
 };
@@ -142,6 +145,9 @@ interface TitleToolbarProps {
   onSortChange: (field: SortField) => void;
   onGroupByChange: (group: GroupByField) => void;
   onToggleColumn: (col: DetailsColumnKey) => void;
+  onResetColumns?: () => void;
+  isSelectionPinned?: boolean;
+  onTogglePinSelection?: () => void;
   onNewFolder: () => void;
   onNewFile: () => void;
   onCut: () => void;
@@ -218,6 +224,9 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
   onSortChange,
   onGroupByChange,
   onToggleColumn,
+  onResetColumns,
+  isSelectionPinned = false,
+  onTogglePinSelection,
   onNewFolder,
   onNewFile,
   onCut,
@@ -476,7 +485,7 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
         </div>
 
         {/* Editable Breadcrumb Address Bar */}
-        <div className="relative flex-1 min-w-0 max-w-3xl app-no-drag">
+        <div className="relative flex-1 min-w-[200px] app-no-drag">
           {editingAddress ? (
             <div className="relative">
               <input
@@ -578,7 +587,7 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
         </div>
 
         {/* Live Search & Advanced Search Popover */}
-        <div className="relative flex items-center w-56 lg:w-64 shrink-0 app-no-drag" ref={advSearchRef}>
+        <div className="relative flex items-center w-64 sm:w-72 lg:w-80 xl:w-[350px] shrink-0 app-no-drag" ref={advSearchRef}>
           <Search className="w-3.5 h-3.5 text-[var(--win-text-faint)] absolute left-3 pointer-events-none" />
           <input
             ref={searchInputRef}
@@ -929,6 +938,22 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
+          {onTogglePinSelection && (
+            <button
+              type="button"
+              disabled={isVaultLocked || selectedCount !== 1}
+              onClick={onTogglePinSelection}
+              aria-label={isSelectionPinned ? 'Unpin selected from Sidebar' : 'Pin selected to Sidebar'}
+              title={isSelectionPinned ? 'Unpin from Sidebar' : 'Pin to Sidebar'}
+              className={`flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs disabled:opacity-35 whitespace-nowrap shrink-0 transition-colors ${
+                isSelectionPinned
+                  ? 'text-amber-400 bg-amber-500/15 hover:bg-amber-500/25'
+                  : 'text-[var(--win-text)] hover:bg-[var(--win-hover)]'
+              }`}
+            >
+              {isSelectionPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+            </button>
+          )}
           {hasAction('undoRedo') && (
             <>
               <div className="w-px h-5 bg-[var(--win-border)] mx-0.5 shrink-0" />
@@ -1121,6 +1146,22 @@ export const TitleToolbar: React.FC<TitleToolbarProps> = ({
                       <span>{col.label}</span>
                     </label>
                   ))}
+                  {onResetColumns && (
+                    <>
+                      <div className="my-1 h-px bg-[var(--win-border)] mx-2" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onResetColumns();
+                          setColumnsMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-[var(--win-text-muted)] hover:text-[var(--win-text)] hover:bg-[var(--win-hover)]"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Reset column layout</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>

@@ -364,6 +364,14 @@ export interface FsWatchEvent {
   timestamp: number;
 }
 
+export interface TerminalExecResult {
+  ok: boolean;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  cwd: string;
+}
+
 export interface DesktopBridgeAPI {
   isElectron: boolean;
   getSystemOverview: () => Promise<SystemOverview>;
@@ -422,6 +430,7 @@ export interface DesktopBridgeAPI {
   openEntry: (targetPath: string) => Promise<FsOperationResult>;
   openWith: (targetPath: string) => Promise<FsOperationResult>;
   openInTerminal: (dirPath: string) => Promise<FsOperationResult>;
+  execTerminalCommand?: (command: string, cwd: string) => Promise<TerminalExecResult>;
   openNewWindow: (targetPath?: string) => Promise<FsOperationResult>;
   copyText: (text: string) => Promise<boolean>;
   getThumbnailUrl: (targetPath: string) => string;

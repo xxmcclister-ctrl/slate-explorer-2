@@ -46,16 +46,25 @@ export const ALL_VIEW_MODES: { id: NormalizedViewMode; label: string }[] = [
   { id: 'content', label: 'Content' },
 ];
 
-export const ALL_DETAILS_COLUMNS: { key: DetailsColumnKey; label: string; width: string }[] = [
-  { key: 'name', label: 'Name', width: 'minmax(220px, 1.4fr)' },
-  { key: 'modifiedAt', label: 'Date modified', width: '150px' },
-  { key: 'createdAt', label: 'Date created', width: '150px' },
-  { key: 'accessedAt', label: 'Date accessed', width: '150px' },
-  { key: 'typeLabel', label: 'Type', width: '135px' },
-  { key: 'size', label: 'Size', width: '92px' },
-  { key: 'attributes', label: 'Attributes', width: '82px' },
-  { key: 'permissions', label: 'Permissions', width: '92px' },
-  { key: 'owner', label: 'Owner', width: '110px' },
+export interface DetailsColumnSpec {
+  key: DetailsColumnKey;
+  label: string;
+  width: string;
+  defaultPx: number;
+  minPx: number;
+  maxPx: number;
+}
+
+export const ALL_DETAILS_COLUMNS: DetailsColumnSpec[] = [
+  { key: 'name', label: 'Name', width: 'minmax(220px, 1.4fr)', defaultPx: 360, minPx: 140, maxPx: 900 },
+  { key: 'modifiedAt', label: 'Date modified', width: '150px', defaultPx: 150, minPx: 100, maxPx: 340 },
+  { key: 'createdAt', label: 'Date created', width: '150px', defaultPx: 150, minPx: 100, maxPx: 340 },
+  { key: 'accessedAt', label: 'Date accessed', width: '150px', defaultPx: 150, minPx: 100, maxPx: 340 },
+  { key: 'typeLabel', label: 'Type', width: '135px', defaultPx: 135, minPx: 84, maxPx: 320 },
+  { key: 'size', label: 'Size', width: '92px', defaultPx: 92, minPx: 68, maxPx: 240 },
+  { key: 'attributes', label: 'Attributes', width: '82px', defaultPx: 82, minPx: 64, maxPx: 220 },
+  { key: 'permissions', label: 'Permissions', width: '92px', defaultPx: 92, minPx: 68, maxPx: 240 },
+  { key: 'owner', label: 'Owner', width: '110px', defaultPx: 110, minPx: 72, maxPx: 280 },
 ];
 
 export const DEFAULT_DETAILS_COLUMNS: DetailsColumnKey[] = [
@@ -65,6 +74,92 @@ export const DEFAULT_DETAILS_COLUMNS: DetailsColumnKey[] = [
   'size',
   'attributes',
 ];
+
+export const DEFAULT_COLUMN_ORDER: DetailsColumnKey[] = ALL_DETAILS_COLUMNS.map((c) => c.key);
+
+export function clampColumnWidth(key: DetailsColumnKey, width: number): number {
+  const spec = ALL_DETAILS_COLUMNS.find((c) => c.key === key);
+  const min = spec?.minPx ?? 64;
+  const max = spec?.maxPx ?? 600;
+  const fallback = spec?.defaultPx ?? 140;
+  if (!Number.isFinite(width)) return fallback;
+  return Math.round(Math.min(max, Math.max(min, width)));
+}
+
+export function getOrderedDetailsColumns(
+  visibleColumns: DetailsColumnKey[],
+  columnOrder: DetailsColumnKey[] = DEFAULT_COLUMN_ORDER,
+): DetailsColumnSpec[] {
+  const visibleSet = new Set<DetailsColumnKey>(['name', ...visibleColumns]);
+  const specMap = new Map(ALL_DETAILS_COLUMNS.map((c) => [c.key, c]));
+  const result: DetailsColumnSpec[] = [];
+  const added = new Set<DetailsColumnKey>();
+
+  const nameSpec = specMap.get('name');
+  if (nameSpec) {
+    result.push(nameSpec);
+    added.add('name');
+  }
+
+  for (const key of columnOrder) {
+    if (key === 'name' || added.has(key) || !visibleSet.has(key)) continue;
+    const spec = specMap.get(key);
+    if (spec) {
+      result.push(spec);
+      added.add(key);
+    }
+  }
+
+  for (const spec of ALL_DETAILS_COLUMNS) {
+    if (visibleSet.has(spec.key) && !added.has(spec.key)) {
+      result.push(spec);
+      added.add(spec.key);
+    }
+  }
+
+  return result;
+}
+
+export function reorderDetailsColumns(
+  order: DetailsColumnKey[],
+  fromKey: DetailsColumnKey,
+  toKey: DetailsColumnKey,
+): DetailsColumnKey[] {
+  if (fromKey === 'name' || toKey === 'name' || fromKey === toKey) return order;
+  const fullOrder: DetailsColumnKey[] = [
+    'name',
+    ...order.filter((k) => k !== 'name'),
+    ...DEFAULT_COLUMN_ORDER.filter((k) => k !== 'name' && !order.includes(k)),
+  ];
+  const fromIdx = fullOrder.indexOf(fromKey);
+  const toIdx = fullOrder.indexOf(toKey);
+  if (fromIdx < 1 || toIdx < 1) return fullOrder;
+  const next = [...fullOrder];
+  const [moved] = next.splice(fromIdx, 1);
+  next.splice(toIdx, 0, moved);
+  return next;
+}
+
+export function buildDetailsGridTemplate(
+  cols: DetailsColumnSpec[],
+  customWidths?: Partial<Record<DetailsColumnKey, number>>,
+): { template: string; hasTrailingSpacer: boolean } {
+  const hasCustomName = typeof customWidths?.name === 'number' && Number.isFinite(customWidths.name);
+  const tracks = cols.map((col) => {
+    const custom = customWidths?.[col.key];
+    if (typeof custom === 'number' && Number.isFinite(custom)) {
+      return `${clampColumnWidth(col.key, custom)}px`;
+    }
+    return col.width;
+  });
+  if (hasCustomName) {
+    tracks.push('minmax(0, 1fr)');
+  }
+  return {
+    template: tracks.join(' '),
+    hasTrailingSpacer: hasCustomName,
+  };
+}
 
 export interface FolderViewPref {
   viewMode: NormalizedViewMode;

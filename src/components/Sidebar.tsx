@@ -11,14 +11,15 @@ import {
   Lock,
   Network,
   PanelLeft,
+  Pin,
   ShieldCheck,
-  Star,
   Unlock,
   Usb,
   X,
 } from 'lucide-react';
 import type {
   DriveInfo,
+  FileEntry,
   LibraryItem,
   QuickAccessItem,
   SecureFolderStatus,
@@ -26,11 +27,40 @@ import type {
 } from '../../electron/types';
 import { getFsBridge } from '../services/fsBridge';
 import { formatBytes } from '../utils/explorerLogic';
+import { FileIcon } from './FileIcon';
 import { QuickAccessIcon } from './QuickAccessIcons';
 
 export interface PinnedFavorite {
   name: string;
   path: string;
+  isDirectory?: boolean;
+  extension?: string;
+  isImage?: boolean;
+}
+
+function favoriteToEntry(fav: PinnedFavorite): FileEntry {
+  const isDirectory = fav.isDirectory !== false;
+  const dotIdx = !isDirectory ? fav.name.lastIndexOf('.') : -1;
+  const inferredExt = dotIdx > 0 ? fav.name.slice(dotIdx).toLowerCase() : '';
+  const extension = (fav.extension ?? inferredExt).toLowerCase();
+  return {
+    name: fav.name,
+    path: fav.path,
+    parentPath: '',
+    extension,
+    isDirectory,
+    isSymlink: false,
+    isHidden: fav.name.startsWith('.'),
+    isReadOnly: false,
+    isSystem: false,
+    inaccessible: false,
+    size: 0,
+    createdAt: 0,
+    modifiedAt: 0,
+    accessedAt: 0,
+    typeLabel: isDirectory ? 'File folder' : 'File',
+    isImage: Boolean(fav.isImage),
+  };
 }
 
 export type SidebarContextTarget =
@@ -47,6 +77,8 @@ interface SidebarProps {
   secureStatus: SecureFolderStatus | null;
   pinnedFavorites: PinnedFavorite[];
   onNavigate: (path: string) => void;
+  onOpenFavorite?: (favorite: PinnedFavorite) => void;
+  onPinPaths?: (paths: string[]) => void;
   onLockSecureFolder: () => void;
   onReorderQuickAccess: (nextOrder: QuickAccessItem[]) => void;
   onReorderFavorites: (nextOrder: PinnedFavorite[]) => void;
@@ -65,6 +97,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   secureStatus,
   pinnedFavorites,
   onNavigate,
+  onOpenFavorite,
+  onPinPaths,
   onLockSecureFolder,
   onReorderQuickAccess,
   onReorderFavorites,
@@ -76,6 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const bridge = useMemo(() => getFsBridge(), []);
   const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
+  const [pinZoneActive, setPinZoneActive] = useState(false);
   const pointerOriginRef = useRef<{ x: number; y: number } | null>(null);
   const draggedRecentlyRef = useRef(false);
 
@@ -177,6 +212,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return;
     }
     onNavigate(destPath);
+  };
+
+  const handleSafeFavoriteClick = (fav: PinnedFavorite) => {
+    if (draggedRecentlyRef.current) {
+      draggedRecentlyRef.current = false;
+      return;
+    }
+    if (onOpenFavorite) {
+      onOpenFavorite(fav);
+    } else {
+      onNavigate(fav.path);
+    }
+  };
+
+  const handlePinZoneDragOver = (e: React.DragEvent) => {
+    if (!onPinPaths || !e.dataTransfer.types.includes('application/x-slate-paths')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'link';
+    if (!pinZoneActive) setPinZoneActive(true);
+  };
+
+  const handlePinZoneDrop = (e: React.DragEvent) => {
+    if (!onPinPaths) return;
+    const raw = e.dataTransfer.getData('application/x-slate-paths');
+    setPinZoneActive(false);
+    if (!raw) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const sources = JSON.parse(raw) as string[];
+      if (Array.isArray(sources) && sources.length > 0) {
+        onPinPaths(sources);
+      }
+    } catch {
+      // ignore invalid drag payload
+    }
   };
 
   const treeRoots = useMemo(() => {
@@ -289,11 +361,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
     >
       {/* Pinned Top Navigation (Favorites, Quick Access, Libraries) */}
       <div className="shrink-0 max-h-[52%] overflow-y-auto px-2.5 pt-2 pb-3 space-y-4">
-        {pinnedFavorites.length > 0 && (
-          <section>
+        {(pinnedFavorites.length > 0 || pinZoneActive) && (
+          <section
+            data-testid="sidebar-pin-dropzone"
+            onDragOver={handlePinZoneDragOver}
+            onDragLeave={() => setPinZoneActive(false)}
+            onDrop={handlePinZoneDrop}
+            className={`rounded-xl transition-colors ${
+              pinZoneActive ? 'bg-blue-500/15 ring-1 ring-blue-500 p-1' : ''
+            }`}
+          >
             <div className="flex items-center justify-between px-2.5 mb-1">
-              <h2 className="text-[11px] font-semibold text-[var(--win-text-faint)] tracking-wide">
-                Favorites
+              <h2 className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--win-text-faint)] tracking-wide">
+                <Pin className="w-3 h-3 text-amber-400" />
+                <span>Pinned</span>
               </h2>
               <button
                 type="button"
@@ -305,70 +386,89 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <PanelLeft className="w-3.5 h-3.5" />
               </button>
             </div>
-            <Reorder.Group
-              axis="y"
-              values={pinnedFavorites}
-              onReorder={onReorderFavorites}
-              className="space-y-0.5"
-            >
-              {pinnedFavorites.map((fav) => {
-                const isActive = currentPath === fav.path;
-                const isDropTarget = dropTargetPath === fav.path;
-                return (
-                  <Reorder.Item
-                    key={fav.path}
-                    value={fav}
-                    data-sidebar-item="favorite"
-                    transition={{ type: 'spring', stiffness: 460, damping: 34 }}
-                    whileDrag={{ scale: 1.02, zIndex: 30 }}
-                    onPointerDown={trackPointerStart}
-                    onPointerMove={trackPointerMove}
-                    onDragOver={(e) => handleDragOver(e, fav.path)}
-                    onDragLeave={() => setDropTargetPath(null)}
-                    onDrop={(e) => handleDrop(e, fav.path)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onSidebarContextMenu(e, { kind: 'favorite', item: fav });
-                    }}
-                    className={`group flex items-center gap-1 rounded-xl transition-colors cursor-grab active:cursor-grabbing ${
-                      isDropTarget
-                        ? 'bg-blue-500/20 ring-1 ring-blue-500'
-                        : isActive
-                          ? 'bg-[var(--win-active)]'
-                          : 'hover:bg-[var(--win-hover)]'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleSafeClick(fav.path)}
-                      title={fav.path}
-                      className="flex-1 min-w-0 flex items-center gap-2.5 px-2.5 py-1.5 text-left text-xs font-medium text-[var(--win-text)]"
-                    >
-                      <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500/35 shrink-0" />
-                      <span className="truncate">{fav.name}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onUnpinFavorite(fav.path);
+            {pinnedFavorites.length > 0 ? (
+              <Reorder.Group
+                axis="y"
+                values={pinnedFavorites}
+                onReorder={onReorderFavorites}
+                className="space-y-0.5"
+              >
+                {pinnedFavorites.map((fav) => {
+                  const isFolder = fav.isDirectory !== false;
+                  const isActive = currentPath === fav.path;
+                  const isDropTarget = isFolder && dropTargetPath === fav.path;
+                  const syntheticEntry = favoriteToEntry(fav);
+                  return (
+                    <Reorder.Item
+                      key={fav.path}
+                      value={fav}
+                      data-sidebar-item="favorite"
+                      transition={{ type: 'spring', stiffness: 460, damping: 34 }}
+                      whileDrag={{ scale: 1.02, zIndex: 30 }}
+                      onPointerDown={trackPointerStart}
+                      onPointerMove={trackPointerMove}
+                      onDragOver={(e) => {
+                        if (isFolder) handleDragOver(e, fav.path);
                       }}
-                      aria-label={`Unpin ${fav.name}`}
-                      className="opacity-0 group-hover:opacity-100 p-1 mr-1 rounded-lg text-[var(--win-text-faint)] hover:text-[var(--win-text)] hover:bg-[var(--win-hover)] transition-all"
+                      onDragLeave={() => setDropTargetPath(null)}
+                      onDrop={(e) => {
+                        if (isFolder) handleDrop(e, fav.path);
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onSidebarContextMenu(e, { kind: 'favorite', item: fav });
+                      }}
+                      className={`group flex items-center gap-1 rounded-xl transition-colors cursor-grab active:cursor-grabbing ${
+                        isDropTarget
+                          ? 'bg-blue-500/20 ring-1 ring-blue-500'
+                          : isActive
+                            ? 'bg-[var(--win-active)]'
+                            : 'hover:bg-[var(--win-hover)]'
+                      }`}
                     >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </Reorder.Item>
-                );
-              })}
-            </Reorder.Group>
+                      <button
+                        type="button"
+                        onClick={() => handleSafeFavoriteClick(fav)}
+                        title={fav.path}
+                        className="flex-1 min-w-0 flex items-center gap-2.5 px-2.5 py-1.5 text-left text-xs font-medium text-[var(--win-text)]"
+                      >
+                        <FileIcon entry={syntheticEntry} size="sm" showThumbnail={false} />
+                        <span className="truncate">{fav.name}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUnpinFavorite(fav.path);
+                        }}
+                        aria-label={`Unpin ${fav.name}`}
+                        title={`Unpin ${fav.name}`}
+                        className="opacity-60 group-hover:opacity-100 p-1 mr-1 rounded-lg text-[var(--win-text-faint)] hover:text-[var(--win-text)] hover:bg-[var(--win-hover)] transition-all"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Reorder.Item>
+                  );
+                })}
+              </Reorder.Group>
+            ) : (
+              <div className="px-2.5 py-2 text-[11px] text-blue-400">
+                Drop here to pin to sidebar
+              </div>
+            )}
           </section>
         )}
 
-        {/* Quick Access */}
+        {/* Quick Access (Header also acts as drag-to-pin dropzone when Pinned list is empty) */}
         <section>
-          <div className="flex items-center justify-between px-2.5 mb-1">
+          <div
+            data-testid={pinnedFavorites.length === 0 ? 'sidebar-pin-dropzone' : undefined}
+            onDragOver={handlePinZoneDragOver}
+            onDragLeave={() => setPinZoneActive(false)}
+            onDrop={handlePinZoneDrop}
+            className="flex items-center justify-between px-2.5 mb-1 rounded-lg"
+          >
             <h2 className="text-[11px] font-semibold text-[var(--win-text-faint)] tracking-wide">
               Quick Access
             </h2>

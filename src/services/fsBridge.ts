@@ -23,6 +23,7 @@ import type {
   SendToTarget,
   StorageAnalysisResult,
   SystemOverview,
+  TerminalExecResult,
   TreeNodeItem,
 } from '../../electron/types';
 
@@ -187,6 +188,8 @@ const httpBridge: DesktopBridgeAPI = {
   openEntry: (targetPath) => postJson<FsOperationResult>('/api/fs/open', { targetPath }),
   openWith: (targetPath) => postJson<FsOperationResult>('/api/fs/open-with', { targetPath }),
   openInTerminal: (dirPath) => postJson<FsOperationResult>('/api/fs/open-terminal', { dirPath }),
+  execTerminalCommand: (command, cwd) =>
+    postJson<TerminalExecResult>('/api/fs/terminal/exec', { command, cwd }),
   openNewWindow: async (targetPath) => {
     const url = targetPath ? `/?path=${encodeURIComponent(targetPath)}` : '/';
     window.history.pushState({}, '', url);

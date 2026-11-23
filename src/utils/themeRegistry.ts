@@ -4,7 +4,7 @@ export type AnimatedThemeId =
   | 'aurora-borealis'
   | 'midnight-ocean'
   | 'synthwave-pulse'
-  | 'solar-flare'
+  | 'midnight-starfield'
   | 'cyber-matrix'
   | 'prism-daylight';
 
@@ -35,7 +35,7 @@ export interface ThemeDefinition {
   animated: boolean;
   swatch: string;
   accent: string;
-  backdropEffect?: 'aurora' | 'ocean' | 'synthwave' | 'ember' | 'matrix' | 'prism';
+  backdropEffect?: 'aurora' | 'ocean' | 'synthwave' | 'starfield' | 'matrix' | 'prism';
   backdropColors?: [string, string, string];
   vars: ThemeCssVars;
 }
@@ -229,30 +229,30 @@ export const THEME_LIST: ThemeDefinition[] = [
     },
   },
   {
-    id: 'solar-flare',
-    name: 'Solar Ember',
-    subtitle: 'Warm Thermal',
+    id: 'midnight-starfield',
+    name: 'Midnight Warp',
+    subtitle: 'Starfield Space',
     colorScheme: 'dark',
     animated: true,
-    backdropEffect: 'ember',
-    backdropColors: ['#f97316', '#ef4444', '#f59e0b'],
-    swatch: 'linear-gradient(135deg, #1f0e0a 0%, #c2410c 52%, #fbbf24 100%)',
-    accent: '#fb923c',
+    backdropEffect: 'starfield',
+    backdropColors: ['#38bdf8', '#818cf8', '#e2e8f0'],
+    swatch: 'linear-gradient(135deg, #03050d 0%, #0f172a 55%, #818cf8 100%)',
+    accent: '#818cf8',
     vars: {
-      '--win-outer': '#110806',
-      '--win-chrome': 'rgba(26, 13, 10, 0.73)',
-      '--win-surface': 'rgba(36, 19, 14, 0.78)',
-      '--win-elevated': 'rgba(44, 24, 18, 0.94)',
-      '--win-control': 'rgba(38, 21, 16, 0.8)',
-      '--win-hover': 'rgba(251, 146, 60, 0.11)',
-      '--win-active': 'rgba(251, 146, 60, 0.19)',
-      '--win-border': 'rgba(251, 146, 60, 0.15)',
-      '--win-border-strong': 'rgba(251, 146, 60, 0.28)',
-      '--win-text': '#fff7ed',
-      '--win-text-muted': '#d6b39d',
-      '--win-text-faint': '#9b7762',
-      '--win-accent': '#fb923c',
-      '--win-accent-soft': 'rgba(251, 146, 60, 0.22)',
+      '--win-outer': '#02040a',
+      '--win-chrome': 'rgba(7, 10, 20, 0.72)',
+      '--win-surface': 'rgba(11, 15, 29, 0.75)',
+      '--win-elevated': 'rgba(15, 20, 38, 0.94)',
+      '--win-control': 'rgba(13, 18, 34, 0.8)',
+      '--win-hover': 'rgba(129, 140, 248, 0.11)',
+      '--win-active': 'rgba(129, 140, 248, 0.19)',
+      '--win-border': 'rgba(148, 163, 224, 0.14)',
+      '--win-border-strong': 'rgba(148, 163, 224, 0.27)',
+      '--win-text': '#f1f5ff',
+      '--win-text-muted': '#9ca9c9',
+      '--win-text-faint': '#667499',
+      '--win-accent': '#818cf8',
+      '--win-accent-soft': 'rgba(129, 140, 248, 0.22)',
     },
   },
   {
@@ -316,6 +316,7 @@ export const ANIMATED_THEMES = THEME_LIST.filter((t) => t.animated);
 
 export function normalizeThemeId(raw: string | null | undefined): ThemeId {
   if (!raw) return DEFAULT_THEME_ID;
+  if (raw === 'solar-flare') return 'midnight-starfield';
   const found = THEME_LIST.find((t) => t.id === raw);
   return found ? found.id : DEFAULT_THEME_ID;
 }

@@ -21,6 +21,7 @@ import type {
 } from '../electron/types';
 import { ActivityQueueDrawer, type ActivityLogEntry } from './components/ActivityQueueDrawer';
 import { BatchRenameDialog } from './components/BatchRenameDialog';
+import { BottomTerminal } from './components/BottomTerminal';
 import { ContextMenu, type ContextMenuState } from './components/ContextMenu';
 import { DeleteConfirmDialog, NewItemDialog } from './components/Dialogs';
 import { FileViewport } from './components/FileViewport';
@@ -54,11 +55,11 @@ import {
 } from './utils/themeRegistry';
 import {
   BUILTIN_EXTENSIONS,
+  DEFAULT_COLUMN_ORDER,
   DEFAULT_DETAILS_COLUMNS,
   DEFAULT_TOOLBAR_ACTIONS,
   computeSelection,
   createExplorerTab,
-  formatBytes,
   getFolderViewPreference,
   getParentPath,
   getPathBaseName,
@@ -66,6 +67,7 @@ import {
   joinPath,
   navigateTabHistory,
   pushUndoOperation,
+  reorderDetailsColumns,
   setFolderViewPreference,
   shiftRedoOperation,
   shiftUndoOperation,
@@ -86,6 +88,8 @@ const FOLDER_VIEW_PREFS_STORAGE_KEY = 'slate-explorer:folder-view-prefs:v1';
 const THEME_STORAGE_KEY = 'slate-explorer:theme:v1';
 const THEME_SPEED_STORAGE_KEY = 'slate-explorer:theme-speed:v1';
 const COLUMNS_STORAGE_KEY = 'slate-explorer:details-columns:v1';
+const COLUMN_WIDTHS_STORAGE_KEY = 'slate-explorer:column-widths:v1';
+const COLUMN_ORDER_STORAGE_KEY = 'slate-explorer:column-order:v1';
 const TOOLBAR_STORAGE_KEY = 'slate-explorer:toolbar-actions:v1';
 const EXTENSIONS_STORAGE_KEY = 'slate-explorer:extensions:v1';
 
@@ -193,6 +197,7 @@ export default function App() {
   const secondaryLoadSeqRef = useRef(0);
   const secureUnlockedRef = useRef(false);
   const prevVisiblePathsRef = useRef<string[]>([]);
+  const pendingRevealPathRef = useRef<string | null>(null);
 
   // Primary Directory Listing & Search State
   const [entries, setEntries] = useState<FileEntry[]>([]);
@@ -234,6 +239,22 @@ export default function App() {
       return saved ? (JSON.parse(saved) as DetailsColumnKey[]) : DEFAULT_DETAILS_COLUMNS;
     } catch {
       return DEFAULT_DETAILS_COLUMNS;
+    }
+  });
+  const [columnWidths, setColumnWidths] = useState<Partial<Record<DetailsColumnKey, number>>>(() => {
+    try {
+      const saved = localStorage.getItem(COLUMN_WIDTHS_STORAGE_KEY);
+      return saved ? (JSON.parse(saved) as Partial<Record<DetailsColumnKey, number>>) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [columnOrder, setColumnOrder] = useState<DetailsColumnKey[]>(() => {
+    try {
+      const saved = localStorage.getItem(COLUMN_ORDER_STORAGE_KEY);
+      return saved ? (JSON.parse(saved) as DetailsColumnKey[]) : DEFAULT_COLUMN_ORDER;
+    } catch {
+      return DEFAULT_COLUMN_ORDER;
     }
   });
 
@@ -344,6 +365,39 @@ export default function App() {
       // ignore quota
     }
   }, [visibleColumns]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLUMN_WIDTHS_STORAGE_KEY, JSON.stringify(columnWidths));
+    } catch {
+      // ignore quota
+    }
+  }, [columnWidths]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(columnOrder));
+    } catch {
+      // ignore quota
+    }
+  }, [columnOrder]);
+
+  const handleResizeColumn = useCallback((key: DetailsColumnKey, width: number) => {
+    setColumnWidths((prev) => ({ ...prev, [key]: width }));
+  }, []);
+
+  const handleReorderColumns = useCallback(
+    (fromKey: DetailsColumnKey, toKey: DetailsColumnKey) => {
+      setColumnOrder((prev) => reorderDetailsColumns(prev, fromKey, toKey));
+    },
+    [],
+  );
+
+  const handleResetColumnLayout = useCallback(() => {
+    setVisibleColumns(DEFAULT_DETAILS_COLUMNS);
+    setColumnWidths({});
+    setColumnOrder(DEFAULT_COLUMN_ORDER);
+  }, []);
 
   useEffect(() => {
     try {
@@ -494,6 +548,14 @@ export default function App() {
           }
         } else {
           setEntries(listing.entries);
+          if (pendingRevealPathRef.current) {
+            const revealTarget = pendingRevealPathRef.current;
+            pendingRevealPathRef.current = null;
+            if (listing.entries.some((item) => item.path === revealTarget)) {
+              setSelectedPaths(new Set([revealTarget]));
+              anchorPathRef.current = revealTarget;
+            }
+          }
           bridge.getIndexStatus(targetPath).then(setIndexStatus).catch(() => {});
         }
       } catch (err) {
@@ -1561,18 +1623,89 @@ export default function App() {
 
   const handleTogglePin = useCallback(
     (entry: FileEntry) => {
-      if (!entry.isDirectory) return;
       setPinnedFavorites((prev) => {
         const exists = prev.some((p) => p.path === entry.path);
         if (exists) {
-          pushToast('info', 'Unpinned from Favorites', entry.name);
+          pushToast('info', 'Unpinned from Sidebar', entry.name);
           return prev.filter((p) => p.path !== entry.path);
         }
-        pushToast('success', 'Pinned to Favorites', entry.name);
-        return [...prev, { name: entry.name, path: entry.path }];
+        pushToast('success', 'Pinned to Sidebar', entry.name);
+        return [
+          ...prev,
+          {
+            name: entry.name,
+            path: entry.path,
+            isDirectory: entry.isDirectory,
+            extension: entry.extension,
+            isImage: entry.isImage,
+          },
+        ];
       });
     },
     [pushToast],
+  );
+
+  const handlePinPaths = useCallback(
+    (paths: string[]) => {
+      if (paths.length === 0) return;
+      const pool = [...entries, ...secondaryEntries, ...(searchResults ?? [])];
+      const byPath = new Map(pool.map((item) => [item.path, item]));
+      setPinnedFavorites((prev) => {
+        const existing = new Set(prev.map((p) => p.path));
+        const additions: PinnedFavorite[] = [];
+        for (const p of paths) {
+          if (existing.has(p)) continue;
+          existing.add(p);
+          const match = byPath.get(p);
+          if (match) {
+            additions.push({
+              name: match.name,
+              path: match.path,
+              isDirectory: match.isDirectory,
+              extension: match.extension,
+              isImage: match.isImage,
+            });
+          } else {
+            const name = getPathBaseName(p);
+            const dotIdx = name.lastIndexOf('.');
+            additions.push({
+              name,
+              path: p,
+              isDirectory: dotIdx <= 0,
+              extension: dotIdx > 0 ? name.slice(dotIdx).toLowerCase() : '',
+            });
+          }
+        }
+        if (additions.length === 0) return prev;
+        pushToast('success', 'Pinned to Sidebar', `${additions.length} item(s)`);
+        return [...prev, ...additions];
+      });
+    },
+    [entries, secondaryEntries, searchResults, pushToast],
+  );
+
+  const handleOpenFavorite = useCallback(
+    (fav: PinnedFavorite) => {
+      if (fav.isDirectory !== false) {
+        navigateTo(fav.path);
+        return;
+      }
+      const parent = getParentPath(fav.path);
+      if (!parent) {
+        bridge.openEntry(fav.path).catch(() => {});
+        return;
+      }
+      if (primaryPath === parent) {
+        setActivePane('left');
+        setSelectedPaths(new Set([fav.path]));
+        anchorPathRef.current = fav.path;
+        return;
+      }
+      pendingRevealPathRef.current = fav.path;
+      setActivePane('left');
+      navigateTo(parent, 'left');
+    },
+    [bridge, navigateTo, primaryPath],
   );
 
   const handleEmptyRecycleBin = useCallback(async () => {
@@ -1720,11 +1853,6 @@ export default function App() {
     requestDelete,
   ]);
 
-  const totalSelectedBytes = useMemo(
-    () => selectedEntries.reduce((acc, item) => acc + (item.isDirectory ? 0 : item.size), 0),
-    [selectedEntries],
-  );
-
   const rawInspectorPath =
     inspectorOverridePath || (selectedEntries.length === 1 ? selectedEntries[0].path : currentPath || null);
   const inspectorTargetPath =
@@ -1812,7 +1940,7 @@ export default function App() {
             : 'w-full max-w-[1260px] h-full max-h-[86vh]'
         }`}
       >
-        <ThemeBackdrop theme={activeThemeDef} />
+        <ThemeBackdrop theme={activeThemeDef} speed={themeSpeed} />
         {/* Row 1 & 2: Navigation, Address Bar, Search + Window Controls & Command Bar */}
         <TitleToolbar
           isWindowMaximized={previewMaximized}
@@ -1901,6 +2029,14 @@ export default function App() {
               prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col],
             )
           }
+          onResetColumns={handleResetColumnLayout}
+          isSelectionPinned={Boolean(
+            selectedEntries.length === 1 &&
+              pinnedFavorites.some((f) => f.path === selectedEntries[0].path),
+          )}
+          onTogglePinSelection={() => {
+            if (selectedEntries.length === 1) handleTogglePin(selectedEntries[0]);
+          }}
           onNewFolder={() => setNewItemMode('folder')}
           onNewFile={() => setNewItemMode('file')}
           onCut={handleCut}
@@ -1932,6 +2068,8 @@ export default function App() {
               secureStatus={secureStatus}
               pinnedFavorites={pinnedFavorites}
               onNavigate={(dest) => navigateTo(dest)}
+              onOpenFavorite={handleOpenFavorite}
+              onPinPaths={handlePinPaths}
               onLockSecureFolder={handleLockSecureFolder}
               onReorderQuickAccess={(nextOrder) => {
                 setQuickAccess(nextOrder);
@@ -1973,6 +2111,11 @@ export default function App() {
                 sortDirection={sortDirection}
                 groupBy={groupBy}
                 visibleColumns={visibleColumns}
+                columnWidths={columnWidths}
+                columnOrder={columnOrder}
+                onResizeColumn={handleResizeColumn}
+                onReorderColumns={handleReorderColumns}
+                onResetColumnLayout={handleResetColumnLayout}
                 splitMode={splitPane}
                 isActivePane={!splitPane || activePane === 'left'}
                 paneTitle={splitPane ? primaryPath : undefined}
@@ -2023,6 +2166,11 @@ export default function App() {
                   sortDirection={sortDirection}
                   groupBy={groupBy}
                   visibleColumns={visibleColumns}
+                  columnWidths={columnWidths}
+                  columnOrder={columnOrder}
+                  onResizeColumn={handleResizeColumn}
+                  onReorderColumns={handleReorderColumns}
+                  onResetColumnLayout={handleResetColumnLayout}
                   splitMode
                   isActivePane={activePane === 'right'}
                   paneTitle={secondaryPath}
@@ -2099,37 +2247,12 @@ export default function App() {
           </div>
         </div>
 
-        {/* Bottom Status Bar */}
-        <footer className="relative z-10 h-8 px-4 bg-[var(--win-chrome)] border border-[var(--win-border)] rounded-2xl mx-1.5 mb-1.5 flex items-center justify-between text-[11px] text-[var(--win-text-muted)] shrink-0 select-none">
-          <div className="flex items-center gap-3 tabular-nums">
-            <span>
-              {activeDisplayedEntries.length.toLocaleString()}{' '}
-              {activeDisplayedEntries.length === 1 ? 'item' : 'items'}
-            </span>
-            {selectedEntries.length > 0 && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="text-[var(--win-text)]">
-                  {selectedEntries.length.toLocaleString()} selected
-                  {totalSelectedBytes > 0 ? ` (${formatBytes(totalSelectedBytes)})` : ''}
-                </span>
-              </>
-            )}
-            {advancedFilter && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="text-blue-500">Filtered results</span>
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-3 font-mono-tabular text-[var(--win-text-faint)] truncate">
-            {overview && (
-              <span className="truncate">
-                {overview.username}@{overview.hostname}
-              </span>
-            )}
-          </div>
-        </footer>
+        {/* Upward-Expanding Integrated Bottom Terminal */}
+        <BottomTerminal
+          currentPath={currentPath}
+          homeDir={overview?.homeDir}
+          onRefreshDirectory={refreshCurrent}
+        />
 
         {/* Context Menu */}
         <ContextMenu
@@ -2159,6 +2282,7 @@ export default function App() {
             if (!res.ok) pushToast('info', 'Open in Terminal', res.message);
           }}
           onNavigate={(dest) => navigateTo(dest)}
+          onOpenFavorite={handleOpenFavorite}
           onCut={handleCut}
           onCopy={handleCopy}
           onPaste={() => {

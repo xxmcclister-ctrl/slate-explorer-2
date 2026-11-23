@@ -2,15 +2,20 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { FileEntry } from '../../electron/types';
 import {
+  buildDetailsGridTemplate,
+  clampColumnWidth,
   classifyEntryCategory,
   computeBatchRenamePreview,
   computeMarqueeRect,
   computeSelection,
   createExplorerTab,
+  DEFAULT_COLUMN_ORDER,
+  DEFAULT_DETAILS_COLUMNS,
   filterEntriesByOptions,
   formatBytes,
   formatEntryDisplayName,
   getFolderViewPreference,
+  getOrderedDetailsColumns,
   getParentPath,
   groupEntries,
   invertSelection,
@@ -22,6 +27,7 @@ import {
   parseBreadcrumbs,
   pushUndoOperation,
   rectsIntersect,
+  reorderDetailsColumns,
   setFolderViewPreference,
   shiftRedoOperation,
   shiftUndoOperation,
@@ -339,3 +345,31 @@ test('isSecureFolderPath and shouldAutoLockSecureFolder enforce lock on leave an
     false,
   );
 });
+
+test('details columns clamp widths, reorder non-name headers, and build grid templates with trailing spacer', () => {
+  assert.equal(clampColumnWidth('name', 40), 140);
+  assert.equal(clampColumnWidth('size', 999), 240);
+  assert.equal(clampColumnWidth('modifiedAt', 185), 185);
+
+  const reordered = reorderDetailsColumns(DEFAULT_COLUMN_ORDER, 'size', 'modifiedAt');
+  assert.equal(reordered[0], 'name');
+  assert.ok(reordered.indexOf('size') < reordered.indexOf('modifiedAt'));
+
+  // Name column stays anchored at index 0
+  assert.deepEqual(reorderDetailsColumns(reordered, 'name', 'size'), reordered);
+
+  const cols = getOrderedDetailsColumns(DEFAULT_DETAILS_COLUMNS, reordered);
+  assert.deepEqual(
+    cols.map((c) => c.key),
+    ['name', 'size', 'modifiedAt', 'typeLabel', 'attributes'],
+  );
+
+  const defaultGrid = buildDetailsGridTemplate(cols, {});
+  assert.equal(defaultGrid.hasTrailingSpacer, false);
+  assert.equal(defaultGrid.template, 'minmax(220px, 1.4fr) 92px 150px 135px 82px');
+
+  const customGrid = buildDetailsGridTemplate(cols, { name: 310, size: 120 });
+  assert.equal(customGrid.hasTrailingSpacer, true);
+  assert.equal(customGrid.template, '310px 120px 150px 135px 82px minmax(0, 1fr)');
+});
+

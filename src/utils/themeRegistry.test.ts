@@ -31,6 +31,8 @@ test('normalizeThemeId and getThemeDefinition safely fallback to default dark th
   assert.equal(normalizeThemeId(null), DEFAULT_THEME_ID);
   assert.equal(normalizeThemeId('unknown-theme'), DEFAULT_THEME_ID);
   assert.equal(normalizeThemeId('aurora-borealis'), 'aurora-borealis');
+  assert.equal(normalizeThemeId('solar-flare'), 'midnight-starfield');
+  assert.equal(getThemeDefinition('midnight-starfield').backdropEffect, 'starfield');
   assert.equal(getThemeDefinition('prism-daylight').colorScheme, 'light');
   assert.equal(getThemeDefinition('invalid').id, DEFAULT_THEME_ID);
 });

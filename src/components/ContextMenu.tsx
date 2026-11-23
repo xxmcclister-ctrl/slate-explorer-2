@@ -19,6 +19,7 @@ import {
   Lock,
   PanelLeft,
   Pencil,
+  Pin,
   PinOff,
   RefreshCw,
   RotateCcw,
@@ -61,6 +62,7 @@ interface ContextMenuProps {
   onOpenInNewWindow: (path: string) => void;
   onOpenInTerminal: (dirPath: string) => void;
   onNavigate: (path: string) => void;
+  onOpenFavorite?: (favorite: PinnedFavorite) => void;
   onCut: () => void;
   onCopy: () => void;
   onPaste: () => void;
@@ -108,6 +110,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onOpenInNewWindow,
   onOpenInTerminal,
   onNavigate,
+  onOpenFavorite,
   onCut,
   onCopy,
   onPaste,
@@ -262,21 +265,30 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
     if (state.kind === 'sidebar-favorite') {
       const { item } = state;
+      const isDir = item.isDirectory !== false;
       return (
         <>
           <MenuItem
-            icon={<FolderOpen className="w-3.5 h-3.5 text-amber-500" />}
-            label={`Open ${item.name}`}
-            onClick={() => onNavigate(item.path)}
+            icon={
+              isDir ? (
+                <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
+              ) : (
+                <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+              )
+            }
+            label={isDir ? `Open ${item.name}` : `Reveal ${item.name}`}
+            onClick={() => (onOpenFavorite ? onOpenFavorite(item) : onNavigate(item.path))}
           />
-          <MenuItem
-            icon={<AppWindow className="w-3.5 h-3.5" />}
-            label="Open in new tab"
-            onClick={() => onOpenInNewTab(item.path)}
-          />
+          {isDir && (
+            <MenuItem
+              icon={<AppWindow className="w-3.5 h-3.5" />}
+              label="Open in new tab"
+              onClick={() => onOpenInNewTab(item.path)}
+            />
+          )}
           <MenuItem
             icon={<PinOff className="w-3.5 h-3.5" />}
-            label="Unpin from Favorites"
+            label="Unpin from Sidebar"
             onClick={() => onUnpinFavorite(item.path)}
           />
           <Divider />
@@ -498,10 +510,16 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             onClick={() => onOpenWith(entry)}
           />
         )}
-        {!isMulti && entry.isDirectory && (
+        {!isMulti && (
           <MenuItem
-            icon={<PinOff className="w-3.5 h-3.5" />}
-            label={isPinned ? 'Unpin from Favorites' : 'Pin to Favorites'}
+            icon={
+              isPinned ? (
+                <PinOff className="w-3.5 h-3.5 text-amber-400" />
+              ) : (
+                <Pin className="w-3.5 h-3.5 text-amber-400" />
+              )
+            }
+            label={isPinned ? 'Unpin from Sidebar' : 'Pin to Sidebar'}
             onClick={() => onTogglePin(entry)}
           />
         )}

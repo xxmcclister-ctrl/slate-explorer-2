@@ -53,6 +53,7 @@ import {
   setAttributes,
 } from './electron/fsService.ts';
 import { secureFolderManager, VaultLockedError } from './electron/secureFolderService.ts';
+import { executeTerminalCommand } from './electron/terminalService.ts';
 import type { AdvancedSearchFilter, ArchiveFormat, FileMetadata } from './electron/types.ts';
 
 const execFileAsync = promisify(execFile);
@@ -536,6 +537,11 @@ async function startServer(): Promise<void> {
   app.post('/api/fs/open-terminal', async (req, res) => {
     const { dirPath } = req.body as { dirPath: string };
     res.json(await openInTerminal(dirPath));
+  });
+
+  app.post('/api/fs/terminal/exec', async (req, res) => {
+    const { command, cwd } = (req.body || {}) as { command?: string; cwd?: string };
+    res.json(await executeTerminalCommand(command ?? '', cwd));
   });
 
   const isProd = process.env.NODE_ENV === 'production';

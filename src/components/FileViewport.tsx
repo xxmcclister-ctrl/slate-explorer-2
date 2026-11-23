@@ -26,12 +26,15 @@ import type {
 } from '../../electron/types';
 import { getFsBridge } from '../services/fsBridge';
 import {
-  ALL_DETAILS_COLUMNS,
+  DEFAULT_COLUMN_ORDER,
   DEFAULT_DETAILS_COLUMNS,
+  buildDetailsGridTemplate,
+  clampColumnWidth,
   computeMarqueeRect,
   formatBytes,
   formatDate,
   formatEntryDisplayName,
+  getOrderedDetailsColumns,
   groupEntries,
   normalizeViewMode,
   rectsIntersect,
@@ -49,6 +52,11 @@ interface FileViewportProps {
   sortDirection: SortDirection;
   groupBy?: GroupByField;
   visibleColumns?: DetailsColumnKey[];
+  columnWidths?: Partial<Record<DetailsColumnKey, number>>;
+  columnOrder?: DetailsColumnKey[];
+  onResizeColumn?: (key: DetailsColumnKey, width: number) => void;
+  onReorderColumns?: (fromKey: DetailsColumnKey, toKey: DetailsColumnKey) => void;
+  onResetColumnLayout?: () => void;
   showExtensions?: boolean;
   showCheckboxes?: boolean;
   splitMode?: boolean;
@@ -97,6 +105,11 @@ export const FileViewport: React.FC<FileViewportProps> = ({
   sortDirection,
   groupBy = 'none',
   visibleColumns = DEFAULT_DETAILS_COLUMNS,
+  columnWidths,
+  columnOrder = DEFAULT_COLUMN_ORDER,
+  onResizeColumn,
+  onReorderColumns,
+  onResetColumnLayout,
   showExtensions = true,
   showCheckboxes = false,
   splitMode = false,
@@ -131,6 +144,7 @@ export const FileViewport: React.FC<FileViewportProps> = ({
 }) => {
   const bridge = getFsBridge();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const detailsHeaderRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const draggingPathsRef = useRef<Set<string>>(new Set());
 
@@ -138,6 +152,9 @@ export const FileViewport: React.FC<FileViewportProps> = ({
   const [renameDraft, setRenameDraft] = useState('');
   const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
   const [marquee, setMarquee] = useState<Rect | null>(null);
+  const [resizingKey, setResizingKey] = useState<DetailsColumnKey | null>(null);
+  const [dragColumnKey, setDragColumnKey] = useState<DetailsColumnKey | null>(null);
+  const [dragOverColumnKey, setDragOverColumnKey] = useState<DetailsColumnKey | null>(null);
 
   const normalizedMode = normalizeViewMode(viewMode);
 
@@ -190,17 +207,41 @@ export const FileViewport: React.FC<FileViewportProps> = ({
     }
   }, [renamingPath, entries]);
 
-  const activeDetailsCols = useMemo(() => {
-    const ordered = ALL_DETAILS_COLUMNS.filter(
-      (c) => c.key === 'name' || visibleColumns.includes(c.key),
-    );
-    return ordered.length > 0 ? ordered : ALL_DETAILS_COLUMNS.slice(0, 4);
-  }, [visibleColumns]);
-
-  const detailsGridTemplate = useMemo(
-    () => activeDetailsCols.map((c) => c.width).join(' '),
-    [activeDetailsCols],
+  const activeDetailsCols = useMemo(
+    () => getOrderedDetailsColumns(visibleColumns, columnOrder),
+    [visibleColumns, columnOrder],
   );
+
+  const { template: detailsGridTemplate, hasTrailingSpacer } = useMemo(
+    () => buildDetailsGridTemplate(activeDetailsCols, columnWidths),
+    [activeDetailsCols, columnWidths],
+  );
+
+  const startColumnResize = (
+    e: React.MouseEvent<HTMLDivElement>,
+    colKey: DetailsColumnKey,
+    fallbackWidth: number,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const cellEl = e.currentTarget.parentElement;
+    const measuredWidth = cellEl ? cellEl.getBoundingClientRect().width : fallbackWidth;
+    const startWidth = Math.round(measuredWidth || fallbackWidth);
+    const startX = e.clientX;
+    setResizingKey(colKey);
+
+    const handleMove = (moveEvent: MouseEvent) => {
+      const nextWidth = clampColumnWidth(colKey, startWidth + (moveEvent.clientX - startX));
+      onResizeColumn?.(colKey, nextWidth);
+    };
+    const handleUp = () => {
+      setResizingKey(null);
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+  };
 
   const effectiveCellWidth = useMemo(() => {
     switch (normalizedMode) {
@@ -509,7 +550,7 @@ export const FileViewport: React.FC<FileViewportProps> = ({
         );
       case 'attributes':
         return (
-          <span className="pl-3 text-[11px] text-[var(--win-text-faint)] font-mono-tabular truncate">
+          <span className="pl-1 text-[11px] text-[var(--win-text-faint)] font-mono-tabular truncate">
             {entry.attributesSummary || '—'}
           </span>
         );
@@ -680,49 +721,135 @@ export const FileViewport: React.FC<FileViewportProps> = ({
         </div>
       )}
 
-      {/* Details Column Header */}
+      {/* Details Column Header (Resizable width + Draggable right-side column reordering) */}
       {normalizedMode === 'details' && (
         <div
-          style={{ gridTemplateColumns: detailsGridTemplate }}
-          className="grid items-center gap-3 px-4 py-2 border-b border-[var(--win-border)] bg-[var(--win-surface)] text-xs font-medium text-[var(--win-text-muted)] shrink-0 select-none overflow-x-hidden"
+          ref={detailsHeaderRef}
+          data-testid="details-column-header"
+          className="border-b border-[var(--win-border)] bg-[var(--win-surface)] shrink-0 select-none overflow-x-hidden px-3"
         >
-          {activeDetailsCols.map((col) => {
-            const sortable =
-              col.key === 'name' ||
-              col.key === 'modifiedAt' ||
-              col.key === 'createdAt' ||
-              col.key === 'accessedAt' ||
-              col.key === 'typeLabel' ||
-              col.key === 'size';
-            const isRight = col.key === 'size';
-            if (!sortable) {
+          <div
+            style={{ gridTemplateColumns: detailsGridTemplate }}
+            className="grid items-center gap-3 px-2 py-1.5 text-xs font-medium text-[var(--win-text-muted)] min-w-full"
+          >
+            {activeDetailsCols.map((col) => {
+              const sortable =
+                col.key === 'name' ||
+                col.key === 'modifiedAt' ||
+                col.key === 'createdAt' ||
+                col.key === 'accessedAt' ||
+                col.key === 'typeLabel' ||
+                col.key === 'size';
+              const isRight = col.key === 'size';
+              const canReorder = Boolean(onReorderColumns) && col.key !== 'name';
+              const isDragTarget = dragOverColumnKey === col.key && dragColumnKey !== col.key;
+
               return (
-                <div key={col.key} className={`py-1 truncate ${col.key === 'attributes' ? 'pl-3' : ''}`}>
-                  {col.label}
+                <div
+                  key={col.key}
+                  data-column-key={col.key}
+                  draggable={canReorder && !resizingKey}
+                  onDragStart={(e) => {
+                    if (!canReorder) return;
+                    setDragColumnKey(col.key);
+                    e.dataTransfer.setData('application/x-slate-col', col.key);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => {
+                    if (!canReorder || !e.dataTransfer.types.includes('application/x-slate-col')) {
+                      return;
+                    }
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragOverColumnKey !== col.key) setDragOverColumnKey(col.key);
+                  }}
+                  onDragLeave={() => {
+                    setDragOverColumnKey((curr) => (curr === col.key ? null : curr));
+                  }}
+                  onDrop={(e) => {
+                    if (!canReorder) return;
+                    e.preventDefault();
+                    const fromKey = e.dataTransfer.getData('application/x-slate-col') as DetailsColumnKey;
+                    setDragColumnKey(null);
+                    setDragOverColumnKey(null);
+                    if (fromKey && fromKey !== col.key) {
+                      onReorderColumns?.(fromKey, col.key);
+                    }
+                  }}
+                  onDragEnd={() => {
+                    setDragColumnKey(null);
+                    setDragOverColumnKey(null);
+                  }}
+                  title={
+                    col.key === 'name'
+                      ? 'Drag right border to shift right-side columns'
+                      : 'Drag header to move column, or drag border to resize'
+                  }
+                  className={`group/col relative flex items-center min-w-0 pr-2 rounded-lg transition-colors ${
+                    canReorder ? 'cursor-grab active:cursor-grabbing' : ''
+                  } ${isDragTarget ? 'bg-blue-500/15 ring-1 ring-blue-500/40' : ''}`}
+                >
+                  {sortable ? (
+                    <button
+                      type="button"
+                      onClick={() => onSortChange(col.key as SortField)}
+                      className={`flex-1 min-w-0 flex items-center gap-1.5 py-1 rounded-lg hover:text-[var(--win-text)] transition-colors ${
+                        isRight ? 'justify-end text-right' : 'text-left'
+                      }`}
+                    >
+                      {isRight && renderSortIndicator(col.key as SortField)}
+                      <span className="truncate">{col.label}</span>
+                      {!isRight && renderSortIndicator(col.key as SortField)}
+                    </button>
+                  ) : (
+                    <div
+                      className={`flex-1 min-w-0 py-1 truncate ${
+                        col.key === 'attributes' ? 'pl-1' : ''
+                      }`}
+                    >
+                      {col.label}
+                    </div>
+                  )}
+
+                  {onResizeColumn && (
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label={`Resize ${col.label} column`}
+                      data-testid={`resize-col-${col.key}`}
+                      onMouseDown={(e) => startColumnResize(e, col.key, col.defaultPx)}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        onResetColumnLayout?.();
+                      }}
+                      title={`Drag to resize ${col.label} (double-click to reset)`}
+                      className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize flex items-center justify-center z-10"
+                    >
+                      <span
+                        className={`w-px h-3.5 rounded-full transition-colors ${
+                          resizingKey === col.key
+                            ? 'bg-blue-500 w-0.5 h-4'
+                            : 'bg-[var(--win-border)] group-hover/col:bg-blue-400/75'
+                        }`}
+                      />
+                    </div>
+                  )}
                 </div>
               );
-            }
-            return (
-              <button
-                key={col.key}
-                type="button"
-                onClick={() => onSortChange(col.key as SortField)}
-                className={`flex items-center gap-1.5 py-1 rounded-lg hover:text-[var(--win-text)] transition-colors ${
-                  isRight ? 'justify-end text-right' : 'text-left'
-                }`}
-              >
-                {isRight && renderSortIndicator(col.key as SortField)}
-                <span>{col.label}</span>
-                {!isRight && renderSortIndicator(col.key as SortField)}
-              </button>
-            );
-          })}
+            })}
+            {hasTrailingSpacer && <div aria-hidden="true" />}
+          </div>
         </div>
       )}
 
       {/* Virtualized Scroll Area */}
       <div
         ref={scrollContainerRef}
+        onScroll={(e) => {
+          if (detailsHeaderRef.current) {
+            detailsHeaderRef.current.scrollLeft = e.currentTarget.scrollLeft;
+          }
+        }}
         onMouseDown={handleViewportMouseDown}
         onDragOver={(e) => {
           if (
@@ -879,6 +1006,7 @@ export const FileViewport: React.FC<FileViewportProps> = ({
                           {renderColumnCell(entry, col.key)}
                         </React.Fragment>
                       ))}
+                    {hasTrailingSpacer && <div aria-hidden="true" />}
                   </div>
                 );
               }
